@@ -34,3 +34,11 @@ Notes
 - First load spends a few seconds compiling shaders (2 FPS briefly), then holds the vsync cap.
 - Crowd of 140 + seated NPCs drawn with ~14 instanced draw calls; vehicles merged to ~8 calls each.
 - GTAO's depth/normal pre-pass roughly doubles draw calls on High/Ultra; still under the 1,500 budget.
+
+## M2 Colaba (2026-11-18)
+
+| Scene | Backend · preset | Draw calls | Triangles | Notes |
+|---|---|---|---|---|
+| Gateway plaza / Taj frontage | WebGPU · High | 320–470 | 1.62–1.75M | 969 extruded footprints in 2 draw calls; one static trimesh collider |
+
+During this session the browser itself was capped at ~30 rAF/s (power saving); CPU work per frame stayed ~1 ms and dynamic resolution held 100% after the fix.

@@ -50,6 +50,17 @@ Gamepad: left stick move/steer, right stick look, RT/LT throttle/brake, A jump, 
 
 See CLAUDE.md §6. Key files: `src/core/Engine.ts` (wiring and loop), `src/render/sky/TimeOfDay.ts`, `src/physics/VehiclePhysics.ts`, `src/gameplay/InteractionSystem.ts`, `src/world/testtrack/TestTrack.ts`. Docs: `docs/PERF.md`, `docs/ASSETS.md`, screenshots in `docs/screenshots/`.
 
-## Next: M2 Colaba
+## M2 (in progress): Colaba from OpenStreetMap
 
-OSM fetch and convert tools, the Colaba road graph and footprints, greybox Gateway of India and Taj Mahal Palace, then M2.5 look-dev.
+Drive south from the test track's south road (or use the dev panel: P → Teleport → Gateway of India) into Colaba / Apollo Bunder at real scale: 969 real building footprints, 329 roads, the real harbour coastline with a sea wall, and greybox Gateway of India and Taj Mahal Palace (with the 1972 tower).
+
+```bash
+node tools/osm-fetch.ts colaba      # Overpass → tools/.cache (raw, git-ignored)
+node tools/osm-to-world.ts colaba   # → public/data/colaba.json
+```
+
+Map data © OpenStreetMap contributors (ODbL).
+
+## Next
+
+M2: Colaba Causeway street dressing (reuse the bazaar kit on real streets), lane graph from OSM roads, Gateway plaza life (pigeons, horse carriages). Then M2.5 look-dev (atmosphere, CSM, LUTs, /lookdev captures).
