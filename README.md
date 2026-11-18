@@ -2,7 +2,7 @@
 
 Private, non-commercial hobby project: a third-person open-world browser game set in Mumbai, built with Vite + TypeScript + Three.js (WebGPU with WebGL2 fallback) + Rapier. `CLAUDE.md` is the source of truth for vision, stack, architecture and milestones.
 
-**Status: M0 Bootstrap + M1 Feel** on a greybox test track by the Arabian Sea.
+**Status: M0 Bootstrap + M1 Feel**, plus a dense hero bazaar street (colonial and chawl facades, shops, carts, bunting, crowds, taxis) next to a test track by the Arabian Sea.
 
 ## Run
 
@@ -24,6 +24,10 @@ URL flags: `?time=18:45` (frozen manual clock, add `&speed=60` for a time-lapse)
 - **Drive or ride anything** (data-driven seats in `src/actors/vehicles/profiles/*.json`): hatchback, auto rickshaw (three-wheel, tips in hard turns), scooter (rider lean, balance assist, pillion), BEST bus (sit, stand holding the rail, hang off the door, window view), and a "Horn OK Please" lorry (with the melodic horn, and a spot on top of the cargo).
 - **Carjack** the auto or the bus driver. **Hire the auto** with G: the meter runs at the Mumbai tariff and F asks the driver to stop. The **BEST bus** runs a loop with stops and NPC passengers.
 - Perf HUD (`` ` ``), pause/settings menu (Esc), lil-gui dev and tuning panel (P).
+
+## The bazaar street
+
+You spawn at the west end of a dense Mumbai street: procedural colonial, chawl and shophouse facades with stocked shops, rolling shutters, Devanagari + English boards, awnings and tube lights; food carts, umbrellas, plastic chairs, bunting and tangled wires; palms and shade trees; original painted film hoardings; murals, litter and puddles; parked kaali-peeli taxis and autos you can drive; and a crowd that walks, chats at stalls, jaywalks, dodges you and thins out at 3 AM. At night it switches to fairy lights, tube-lit shops, sodium lamps and neon boards.
 
 ## Controls
 

@@ -33,8 +33,8 @@ describe('vehicle physics (Rapier DynamicRayCastVehicleController)', () => {
     ids = Object.keys(VEHICLE_PROFILES);
   });
 
-  it('has all five M1 vehicles', () => {
-    expect(ids.sort()).toEqual(['auto-rickshaw', 'best-bus', 'hatchback', 'lorry', 'scooter']);
+  it('has all M1 vehicles', () => {
+    expect(ids.sort()).toEqual(['auto-rickshaw', 'best-bus', 'hatchback', 'lorry', 'scooter', 'taxi']);
   });
 
   for (const id of Object.keys(VEHICLE_PROFILES)) {

@@ -21,3 +21,16 @@ Notes
 - Dynamic resolution never dropped below 100% on this machine.
 - Not yet measured on the RTX 3060 / Iris Xe reference machines.
 - Initial download: see `npm run build` output (three ≈ 1.2 MB, rapier ≈ 2 MB with embedded WASM, before gzip). Well under the 40 MB limit.
+
+## Bazaar street pass (2026-11-18)
+
+| Scene | Backend · preset | FPS | Draw calls | Triangles | JS heap |
+|---|---|---|---|---|---|
+| Bazaar, midday (11:00) | WebGPU · High (GTAO on) | 120 | 819–1000 | 1.48M | 120–480 MB (GC sawtooth, no leak) |
+| Bazaar, golden hour (17:45) | WebGPU · High | 116–120 | 948 | 1.48M | ~280 MB |
+| Bazaar, night (21:15) | WebGPU · High | 120 | 750–830 | 1.48M | ~170 MB after GC |
+| Bazaar, midday | WebGPU · Medium (no GTAO) | 120 | 551 | 0.97M | ~120 MB |
+
+- First load spends a few seconds compiling shaders (2 FPS briefly), then holds the vsync cap.
+- Crowd of 140 + seated NPCs drawn with ~14 instanced draw calls; vehicles merged to ~8 calls each.
+- GTAO's depth/normal pre-pass roughly doubles draw calls on High/Ultra; still under the 1,500 budget.

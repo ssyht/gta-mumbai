@@ -253,6 +253,9 @@ Rules: systems talk through the EventBus. Gameplay state is in one store. No sys
 - (2026-11-18) Vehicle frame convention: +Z forward, **+X left**, +Y up (Rapier positive steer = left). Indian right-hand drive puts drivers at −X; bus doors are at +X (kerb side). Rapier's raycast vehicle produces almost no body roll, so profiles carry a `rollFactor` (cornering roll torque); the auto's high value makes it tilt-prone.
 - (2026-11-18) Kinematic player body makes no contacts with vehicles (vehicle hits are resolved as ragdolls by gameplay); character-controller sweeps still treat vehicles as solid.
 - (2026-11-18) M1 humanoids are procedural greybox rigs with a pose library; no Quaternius/Mixamo download yet (needs approval for asset packs). The project is hosted on GitHub (private repo) and deployed to Vercel as a static Vite build.
+- (2026-11-18, street pass) Added the hero **bazaar street** (`world/districts/BazaarStreet.ts`) using the user's Hitman 3 Mumbai screenshots purely as a mood/density reference (all art, signage, posters and layout are original). Procedural facade kit (`world/buildings/StreetBuildings.ts`: colonial / chawl / shophouse, shops with shutters, signs, awnings, tube lights), street kit (carts, umbrellas, chairs, bunting), instanced dressing, alpha-card palms and trees, kaali-peeli taxi, instanced crowd via `RigInstancer`.
+- (2026-11-18) **Tone mapping switched to ACES Filmic** (§4A.4 allows it). AgX desaturated the bright physical sky to white and gave a flat look against the reference shots; revisit when M2.5 LUTs land.
+- (2026-11-18) Image-based light: a sun-disc-free copy of the sky is baked to PMREM and re-baked when the sun moves >1.2°. GTAO (High/Ultra) uses a depth/normal pre-pass plus DenoiseNode (raw GTAO was noisy on thin geometry). Sky luminance scaled ×0.6 so midday reads deep blue under ACES.
 
 ---
 

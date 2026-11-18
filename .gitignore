@@ -12,3 +12,4 @@ coverage/
 # tool caches
 /tools/.cache/
 .omc/
+.vercel
