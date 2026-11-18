@@ -83,7 +83,7 @@ const CELL = {
 } as const;
 type CellKey = keyof typeof CELL;
 
-class Bucket {
+export class Bucket {
   pos: number[] = [];
   nor: number[] = [];
   uv: number[] = [];
@@ -910,19 +910,7 @@ export class StreetBuildings {
   }
 
   build(scene: THREE.Scene): void {
-    const { map, mask } = facadeAtlas();
-    const cellUv = fract(uv()).mul(0.5).add(attribute('atlas', 'vec2'));
-    const plasterMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.88 });
-    // World-space grime: large damp patches + darker base where splashes hit.
-    const n = mx_noise_float(positionWorld.mul(vec3(0.12, 0.35, 0.12)));
-    const base = step(positionWorld.y, 1.2).mul(0.15);
-    plasterMat.colorNode = texture(map, cellUv).rgb.mul(vertexColor()).mul(n.mul(0.18).add(0.9).sub(base));
-    const cell = floor(uv());
-    const h1 = fract(sin(dot(cell, vec2(127.1, 311.7))).mul(43758.5453));
-    const h2 = fract(sin(dot(cell, vec2(269.5, 183.3))).mul(43758.5453));
-    const lit = step(h1, lightUniforms.windows.mul(0.88));
-    const tint = mix(vec3(0.72, 0.88, 1.0), vec3(1.0, 0.64, 0.3), step(0.4, h2));
-    plasterMat.emissiveNode = texture(mask, cellUv).r.mul(lit).mul(tint).mul(0.9);
+    const plasterMat = createPlasterMaterial();
 
     const conc = concreteTexture();
     const trimMat = new THREE.MeshStandardMaterial({ map: conc, vertexColors: true, roughness: 0.85 });
@@ -975,3 +963,30 @@ export class StreetBuildings {
     }
   }
 }
+
+let plasterShared: THREE.MeshStandardNodeMaterial | null = null;
+/**
+ * Facade plaster: 2×2 window atlas tiled one cell per bay × floor (uv in cell
+ * units, `atlas` attribute picks the cell), vertex-colour tint, world-space
+ * damp grime, and night windows that switch on one by one.
+ */
+export function createPlasterMaterial(): THREE.MeshStandardNodeMaterial {
+  if (plasterShared) return plasterShared;
+  const { map, mask } = facadeAtlas();
+  const cellUv = fract(uv()).mul(0.5).add(attribute('atlas', 'vec2'));
+  const plasterMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.88 });
+  // World-space grime: large damp patches + darker base where splashes hit.
+  const n = mx_noise_float(positionWorld.mul(vec3(0.12, 0.35, 0.12)));
+  const base = step(positionWorld.y, 1.2).mul(0.15);
+  plasterMat.colorNode = texture(map, cellUv).rgb.mul(vertexColor()).mul(n.mul(0.18).add(0.9).sub(base));
+  const cell = floor(uv());
+  const h1 = fract(sin(dot(cell, vec2(127.1, 311.7))).mul(43758.5453));
+  const h2 = fract(sin(dot(cell, vec2(269.5, 183.3))).mul(43758.5453));
+  const lit = step(h1, lightUniforms.windows.mul(0.88));
+  const tint = mix(vec3(0.72, 0.88, 1.0), vec3(1.0, 0.64, 0.3), step(0.4, h2));
+  plasterMat.emissiveNode = texture(mask, cellUv).r.mul(lit).mul(tint).mul(0.9);
+  plasterShared = plasterMat;
+  return plasterMat;
+}
+
+export const FACADE_CELL = CELL;

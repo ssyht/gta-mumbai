@@ -80,11 +80,12 @@ export class Hud {
     mode: TimeMode,
     speedKmh: number | null,
     vehicleName: string | null,
+    location = '',
   ): void {
-    const c = `${formatClock(clockMinutes)}|${phase}|${mode}`;
+    const c = `${formatClock(clockMinutes)}|${phase}|${mode}|${location}`;
     if (c !== this.lastClock) {
       this.lastClock = c;
-      this.clock.innerHTML = `<b>${formatClock(clockMinutes)}</b><span>${PHASE_LABEL[phase]}</span><small>${MODE_LABEL[mode]}</small>`;
+      this.clock.innerHTML = `<b>${formatClock(clockMinutes)}</b><span>${PHASE_LABEL[phase]}</span><small>${MODE_LABEL[mode]}</small>${location ? `<em>${location}</em>` : ''}`;
     }
     if (this.toastTimer > 0) {
       this.toastTimer -= dt;

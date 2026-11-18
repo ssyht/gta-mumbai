@@ -8,6 +8,7 @@ import type { SkySystem } from '../render/sky/SkySystem';
 export interface DevPanelHooks {
   teleportTo: (vehicleId: string) => void;
   respawn: () => void;
+  places: Record<string, () => void>;
   onTimeChange: () => void;
 }
 
@@ -134,6 +135,7 @@ export class DevPanel {
     const go = this.gui.addFolder('Teleport');
     for (const v of vehicles.list) go.add({ go: () => hooks.teleportTo(v.id) }, 'go').name(`→ ${v.name}`);
     go.add({ go: hooks.respawn }, 'go').name('→ Spawn');
+    for (const [name, fn] of Object.entries(hooks.places)) go.add({ go: fn }, 'go').name(`→ ${name}`);
 
     for (const f of [veh, pl, go]) f.close();
     this.gui.hide();

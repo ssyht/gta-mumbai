@@ -169,16 +169,17 @@ export function buildTestTrack(scene: THREE.Scene, physics: PhysicsWorld, maxPoi
 
   // --- Land, sea floor, sea -------------------------------------------------
   const asphalt = asphaltTexture();
-  asphalt.repeat.set(144, 160);
+  asphalt.repeat.set(144, 122.5);
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(1440, 1600),
+    new THREE.PlaneGeometry(1440, 1225),
     new THREE.MeshStandardMaterial({ map: asphalt, color: 0xe6ddd0, roughness: 0.95 }),
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.position.set(SEA_X + 720, 0, 0);
+  ground.position.set(SEA_X + 720, 0, -187.5);
   ground.receiveShadow = true;
   scene.add(ground);
-  physics.addStaticBox({ x: SEA_X + 720, y: -0.5, z: 0 }, { x: 720, y: 0.5, z: 800 });
+  // Land ends at z = 425 where the Colaba district (real OSM data) begins.
+  physics.addStaticBox({ x: SEA_X + 720, y: -0.5, z: -187.5 }, { x: 720, y: 0.5, z: 612.5 });
   physics.addStaticBox({ x: SEA_X - 1000, y: -7.5, z: 0 }, { x: 1000, y: 0.5, z: 800 });
   const sea = createSea(9000, 9000);
   sea.position.set(SEA_X - 4500, SEA_LEVEL, 0);
@@ -444,6 +445,7 @@ export function buildTestTrack(scene: THREE.Scene, physics: PhysicsWorld, maxPoi
     floors: [number, number],
     style: 'chawl' | 'apartment' | 'tower',
     collider = true,
+    skip?: [number, number],
   ): Array<{ x: number; z: number; w: number; d: number }> => {
     const out: Array<{ x: number; z: number; w: number; d: number }> = [];
     let c = from;
@@ -451,6 +453,10 @@ export function buildTestTrack(scene: THREE.Scene, physics: PhysicsWorld, maxPoi
       const w = 10 + rnd() * 14;
       const f = floors[0] + Math.floor(rnd() * (floors[1] - floors[0] + 1));
       const center = c + w / 2;
+      if (skip && c + w > skip[0] && c < skip[1]) {
+        c += w + 2;
+        continue;
+      }
       const spec =
         axis === 'z'
           ? { x: fixed, z: center, w: depth, d: w, floors: f, style, collider }
@@ -467,15 +473,15 @@ export function buildTestTrack(scene: THREE.Scene, physics: PhysicsWorld, maxPoi
   row(340, 'z', -200, 200, 22, [10, 18], 'apartment');
   row(-182, 'x', 10, 230, 14, [3, 5], 'chawl');
   row(-212, 'x', 0, 240, 18, [5, 10], 'apartment');
-  row(182, 'x', 10, 230, 14, [3, 5], 'chawl');
-  row(212, 'x', 0, 240, 18, [5, 10], 'apartment');
+  row(182, 'x', 10, 230, 14, [3, 5], 'chawl', true, [98, 124]);
+  row(212, 'x', 0, 240, 18, [5, 10], 'apartment', true, [98, 124]);
   row(-122, 'x', 60, 170, 12, [2, 4], 'chawl');
   row(122, 'x', 60, 170, 12, [2, 4], 'chawl');
   // Distant skyline (no colliders).
   for (let i = 0; i < 46; i++) {
     buildings.add({
       x: 480 + rnd() * 800,
-      z: -900 + rnd() * 1800,
+      z: -900 + rnd() * 1280,
       w: 22 + rnd() * 20,
       d: 22 + rnd() * 20,
       floors: 15 + Math.floor(rnd() * 32),

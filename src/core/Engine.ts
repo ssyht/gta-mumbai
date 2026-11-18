@@ -21,6 +21,7 @@ import { WaypointDriver } from '../ai/WaypointDriver';
 import { RigInstancer } from '../actors/rig/RigInstancer';
 import { Crowd, type CrowdHazard } from '../actors/npcs/Crowd';
 import { buildBazaarStreet, type BazaarStreet } from '../world/districts/BazaarStreet';
+import { buildColaba, buildConnector, loadColabaData, type ColabaDistrict } from '../world/districts/Colaba';
 import { InteractionSystem } from '../gameplay/InteractionSystem';
 import { cityDensity } from '../gameplay/cityRhythm';
 import { AudioSystem } from '../audio/AudioSystem';
@@ -63,6 +64,7 @@ export class Engine {
   instancer!: RigInstancer;
   crowd!: Crowd;
   bazaar!: BazaarStreet;
+  colaba!: ColabaDistrict;
   interaction!: InteractionSystem;
   audio!: AudioSystem;
   hud!: Hud;
@@ -73,6 +75,25 @@ export class Engine {
   firstPerson = false;
   private last = performance.now();
   private goodFrames = 0;
+  private gpuMs = 0;
+  private gpuPending = false;
+  private gpuFrame = 0;
+
+  /** Every 20 frames, time how long the GPU takes to drain this frame's work (WebGPU only). */
+  private sampleGpu(): void {
+    const device = (this.gr.renderer.backend as { device?: GPUDevice }).device;
+    if (!device || this.gpuPending || ++this.gpuFrame % 20) return;
+    this.gpuPending = true;
+    const t0 = performance.now();
+    device.queue
+      .onSubmittedWorkDone()
+      .then(() => {
+        this.gpuMs = performance.now() - t0;
+      })
+      .finally(() => {
+        this.gpuPending = false;
+      });
+  }
   private warmResolve: (() => void) | null = null;
   /** Resolves once frames run smoothly (shaders/pipelines compiled). */
   readonly warm = new Promise<void>((r) => (this.warmResolve = r));
@@ -114,13 +135,19 @@ export class Engine {
     this.track = buildTestTrack(this.scene, this.physics, quality.maxPointLights);
     onStatus('Building the bazaar street…');
     this.bazaar = buildBazaarStreet(this.scene, this.physics, this.track.lights);
+    onStatus('Loading Colaba (OpenStreetMap)…');
+    const colabaData = await loadColabaData();
+    const colabaOffset = new THREE.Vector3(941, 0, 867);
+    this.colaba = buildColaba(this.scene, this.physics, colabaData, colabaOffset, this.track.lights);
+    buildConnector(this.scene, colabaData, colabaOffset, new THREE.Vector3(110, 0, 152));
     this.track.lights.build();
     this.instancer = new RigInstancer(this.scene, 320);
 
     onStatus('Parking vehicles…');
     this.vehicles = new VehicleManager(this.scene, this.physics, this.bus);
     const P = this.track.parking;
-    for (const p of this.bazaar.parked) this.vehicles.spawn(p.profile, p.id, p.pos, p.yaw);
+    for (const p of [...this.bazaar.parked, ...this.colaba.parked])
+      this.vehicles.spawn(p.profile, p.id, p.pos, p.yaw);
     this.vehicles.spawn('lorry', 'lorry', P.lorry.pos, P.lorry.yaw);
     const auto = this.vehicles.spawn('auto-rickshaw', 'auto', P.auto.pos, P.auto.yaw);
     const bus = this.vehicles.spawn('best-bus', 'bus', P.bus.pos, P.bus.yaw);
@@ -195,6 +222,13 @@ export class Engine {
     this.menu = new PauseMenu(ui, this.settings, this.bus, () => this.resume());
     this.dev = new DevPanel(this.tod, this.sky, this.vehicles, this.player, {
       teleportTo: (id) => this.teleportTo(id),
+      places: {
+        'Gateway of India': () =>
+          this.teleportPlace(this.colaba.gateway.clone().add(new THREE.Vector3(-55, 0, -45)), 2.2),
+        'Taj Mahal Palace': () =>
+          this.teleportPlace(this.colaba.gateway.clone().add(new THREE.Vector3(-60, 0, -45)), -1.05),
+        'Bazaar street': () => this.teleportPlace(this.bazaar.spawn.pos, this.bazaar.spawn.yaw),
+      },
       respawn: () => this.respawn(),
       onTimeChange: () => this.menu.syncClock(this.tod.clockMinutes),
     });
@@ -289,6 +323,23 @@ export class Engine {
       });
     }
     return out;
+  }
+
+  teleportPlace(pos: THREE.Vector3, yaw: number): void {
+    if (!this.player.isOnFoot) return;
+    const p = pos.clone();
+    p.y = this.physics.groundHeight(p.x, p.z, 60, 0) + 0.05;
+    this.player.teleport(p, yaw);
+    this.cam.yaw = yaw;
+  }
+
+  locationName(): string {
+    const p = this.player.position;
+    if (this.colaba.bounds.containsPoint(new THREE.Vector2(p.x, p.z)))
+      return p.distanceTo(this.colaba.gateway) < 220 ? 'Apollo Bunder · Colaba' : 'Colaba';
+    if (Math.abs(p.z) < 12 && p.x > 6 && p.x < 214) return 'Bazaar street';
+    if (p.x < -7) return 'Sea-face promenade';
+    return 'Test track';
   }
 
   respawn(): void {
@@ -397,12 +448,18 @@ export class Engine {
       this.tod.mode,
       pv ? pv.physics.speedKmh : null,
       pv?.name ?? null,
+      this.locationName(),
     );
 
     this.gr.renderer.info.reset();
     this.post.render();
     this.perf.update(frameMs);
-    this.gr.updateDynamicResolution(frameMs, dt);
+    // Drive dynamic resolution from our own cost (CPU work + sampled GPU time), not the
+    // frame interval: browsers can cap rAF (power saving, 30 Hz displays) and that is not our load.
+    const workMs = performance.now() - now;
+    this.sampleGpu();
+    if (!this.warmResolve)
+      this.gr.updateDynamicResolution(this.gpuMs > 0 ? Math.max(workMs, this.gpuMs) : frameMs, dt);
     input.endFrame();
   }
 }
