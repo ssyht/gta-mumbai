@@ -1,0 +1,72 @@
+{
+  "id": "scooter",
+  "name": "Scooter",
+  "class": "twoWheeler",
+  "mesh": "scooter",
+  "chassis": {
+    "halfExtents": [0.28, 0.32, 0.85],
+    "mass": 180,
+    "centerOfMass": [0, -0.05, 0],
+    "inertiaScale": 1.6,
+    "linearDamping": 0.05,
+    "angularDamping": 1.2
+  },
+  "wheels": [
+    {
+      "position": [0, -0.4, 0.62],
+      "radius": 0.25,
+      "width": 0.1,
+      "steer": true,
+      "drive": false,
+      "brake": 0.55
+    },
+    {
+      "position": [0, -0.4, -0.58],
+      "radius": 0.25,
+      "width": 0.1,
+      "steer": false,
+      "drive": true,
+      "brake": 0.45,
+      "handbrake": true
+    }
+  ],
+  "suspension": {
+    "restLength": 0.2,
+    "stiffness": 55,
+    "compression": 3.0,
+    "relaxation": 3.4,
+    "maxTravel": 0.15,
+    "maxForce": 8000
+  },
+  "tyres": { "frictionSlip": 2.2, "sideFrictionStiffness": 1.2 },
+  "engine": {
+    "force": 720,
+    "reverseForce": 0,
+    "topSpeedKmh": 85,
+    "reverseTopSpeedKmh": 3,
+    "brakeForce": 18,
+    "handbrakeForce": 9,
+    "coastBrake": 0.6
+  },
+  "steering": { "maxAngle": 0.55, "speed": 3.2, "highSpeedFactor": 0.3 },
+  "stability": { "uprightAssist": 1.0, "maxLean": 0.55, "airBrake": false, "rollFactor": 0 },
+  "seats": [
+    {
+      "id": "rider",
+      "type": "driver",
+      "pose": "ride",
+      "position": [0, 0.2, -0.08],
+      "exit": [-0.85, -0.65, 0.0]
+    },
+    {
+      "id": "pillion",
+      "type": "passenger",
+      "pose": "pillion",
+      "position": [0, 0.26, -0.48],
+      "exit": [0.85, -0.65, -0.4]
+    }
+  ],
+  "camera": { "distance": 4.2, "height": 1.7, "lookHeight": 1.1, "fov": 66 },
+  "audio": { "horn": "scooter", "engine": "scooter" },
+  "ai": { "cruiseSpeed": 11 }
+}

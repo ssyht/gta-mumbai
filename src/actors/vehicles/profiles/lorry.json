@@ -1,0 +1,97 @@
+{
+  "id": "lorry",
+  "name": "Horn OK Please Lorry",
+  "class": "truck",
+  "mesh": "lorry",
+  "chassis": {
+    "halfExtents": [1.2, 0.9, 4.1],
+    "mass": 9000,
+    "centerOfMass": [0, -0.35, 0.3],
+    "inertiaScale": 1.1,
+    "linearDamping": 0.05,
+    "angularDamping": 0.8
+  },
+  "wheels": [
+    {
+      "position": [1.0, -0.88, 2.75],
+      "radius": 0.5,
+      "width": 0.3,
+      "steer": true,
+      "drive": false,
+      "brake": 0.5
+    },
+    {
+      "position": [-1.0, -0.88, 2.75],
+      "radius": 0.5,
+      "width": 0.3,
+      "steer": true,
+      "drive": false,
+      "brake": 0.5
+    },
+    {
+      "position": [0.98, -0.88, -2.2],
+      "radius": 0.5,
+      "width": 0.42,
+      "steer": false,
+      "drive": true,
+      "brake": 0.5,
+      "handbrake": true
+    },
+    {
+      "position": [-0.98, -0.88, -2.2],
+      "radius": 0.5,
+      "width": 0.42,
+      "steer": false,
+      "drive": true,
+      "brake": 0.5,
+      "handbrake": true
+    }
+  ],
+  "suspension": {
+    "restLength": 0.3,
+    "stiffness": 28,
+    "compression": 3.4,
+    "relaxation": 4.0,
+    "maxTravel": 0.24,
+    "maxForce": 160000
+  },
+  "tyres": { "frictionSlip": 1.9, "sideFrictionStiffness": 1.0 },
+  "engine": {
+    "force": 15500,
+    "reverseForce": 7000,
+    "topSpeedKmh": 75,
+    "reverseTopSpeedKmh": 12,
+    "brakeForce": 640,
+    "handbrakeForce": 420,
+    "coastBrake": 22
+  },
+  "steering": { "maxAngle": 0.55, "speed": 1.3, "highSpeedFactor": 0.5 },
+  "stability": { "uprightAssist": 0, "maxLean": 0, "airBrake": true, "rollFactor": 0.35 },
+  "seats": [
+    {
+      "id": "driver",
+      "type": "driver",
+      "pose": "drive",
+      "position": [-0.55, 0.12, 3.15],
+      "exit": [-1.95, -1.4, 3.1]
+    },
+    {
+      "id": "cab-passenger",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [0.55, 0.12, 3.15],
+      "exit": [1.95, -1.4, 3.1],
+      "window": "left"
+    },
+    {
+      "id": "cargo-top",
+      "type": "standing",
+      "pose": "standHoldRail",
+      "position": [0.3, 1.2, -1.6],
+      "exit": [1.95, -1.4, -1.6]
+    }
+  ],
+  "camera": { "distance": 11, "height": 3.8, "lookHeight": 1.8, "fov": 60 },
+  "audio": { "horn": "truck", "engine": "diesel" },
+  "ai": { "cruiseSpeed": 9 }
+}

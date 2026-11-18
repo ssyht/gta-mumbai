@@ -1,0 +1,106 @@
+{
+  "id": "hatchback",
+  "name": "Hatchback",
+  "class": "car",
+  "mesh": "hatchback",
+  "chassis": {
+    "halfExtents": [0.8, 0.33, 1.85],
+    "mass": 1000,
+    "centerOfMass": [0, -0.3, 0.1],
+    "inertiaScale": 1.2,
+    "linearDamping": 0.04,
+    "angularDamping": 0.6
+  },
+  "wheels": [
+    {
+      "position": [0.7, -0.32, 1.2],
+      "radius": 0.3,
+      "width": 0.2,
+      "steer": true,
+      "drive": true,
+      "brake": 0.6
+    },
+    {
+      "position": [-0.7, -0.32, 1.2],
+      "radius": 0.3,
+      "width": 0.2,
+      "steer": true,
+      "drive": true,
+      "brake": 0.6
+    },
+    {
+      "position": [0.7, -0.32, -1.2],
+      "radius": 0.3,
+      "width": 0.2,
+      "steer": false,
+      "drive": false,
+      "brake": 0.4,
+      "handbrake": true
+    },
+    {
+      "position": [-0.7, -0.32, -1.2],
+      "radius": 0.3,
+      "width": 0.2,
+      "steer": false,
+      "drive": false,
+      "brake": 0.4,
+      "handbrake": true
+    }
+  ],
+  "suspension": {
+    "restLength": 0.25,
+    "stiffness": 32,
+    "compression": 3.2,
+    "relaxation": 3.8,
+    "maxTravel": 0.22,
+    "maxForce": 20000
+  },
+  "tyres": { "frictionSlip": 2.4, "sideFrictionStiffness": 1.0 },
+  "engine": {
+    "force": 3400,
+    "reverseForce": 1600,
+    "topSpeedKmh": 140,
+    "reverseTopSpeedKmh": 30,
+    "brakeForce": 110,
+    "handbrakeForce": 60,
+    "coastBrake": 2.5
+  },
+  "steering": { "maxAngle": 0.6, "speed": 2.6, "highSpeedFactor": 0.35 },
+  "stability": { "uprightAssist": 0, "maxLean": 0, "airBrake": false, "rollFactor": 0.18 },
+  "seats": [
+    {
+      "id": "driver",
+      "type": "driver",
+      "pose": "drive",
+      "position": [-0.36, 0.02, 0.05],
+      "exit": [-1.55, -0.62, 0.15]
+    },
+    {
+      "id": "front-passenger",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [0.36, 0.02, 0.05],
+      "exit": [1.55, -0.62, 0.15],
+      "window": "left"
+    },
+    {
+      "id": "rear-left",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [0.36, 0.04, -0.8],
+      "exit": [1.55, -0.62, -0.8],
+      "window": "left"
+    },
+    {
+      "id": "rear-right",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [-0.36, 0.04, -0.8],
+      "exit": [-1.55, -0.62, -0.8],
+      "window": "right"
+    }
+  ],
+  "camera": { "distance": 6.2, "height": 2.0, "lookHeight": 0.9, "fov": 62 },
+  "audio": { "horn": "car", "engine": "petrol" },
+  "ai": { "cruiseSpeed": 11 }
+}

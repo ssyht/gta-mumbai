@@ -1,0 +1,188 @@
+{
+  "id": "best-bus",
+  "name": "BEST Bus",
+  "class": "bus",
+  "mesh": "bus",
+  "chassis": {
+    "halfExtents": [1.28, 1.15, 5.8],
+    "mass": 11000,
+    "centerOfMass": [0, -0.65, 0],
+    "inertiaScale": 1.1,
+    "linearDamping": 0.05,
+    "angularDamping": 0.8
+  },
+  "wheels": [
+    {
+      "position": [1.06, -1.0, 3.9],
+      "radius": 0.5,
+      "width": 0.32,
+      "steer": true,
+      "drive": false,
+      "brake": 0.5
+    },
+    {
+      "position": [-1.06, -1.0, 3.9],
+      "radius": 0.5,
+      "width": 0.32,
+      "steer": true,
+      "drive": false,
+      "brake": 0.5
+    },
+    {
+      "position": [1.02, -1.0, -2.7],
+      "radius": 0.5,
+      "width": 0.42,
+      "steer": false,
+      "drive": true,
+      "brake": 0.5,
+      "handbrake": true
+    },
+    {
+      "position": [-1.02, -1.0, -2.7],
+      "radius": 0.5,
+      "width": 0.42,
+      "steer": false,
+      "drive": true,
+      "brake": 0.5,
+      "handbrake": true
+    }
+  ],
+  "suspension": {
+    "restLength": 0.3,
+    "stiffness": 26,
+    "compression": 3.6,
+    "relaxation": 4.2,
+    "maxTravel": 0.25,
+    "maxForce": 200000
+  },
+  "tyres": { "frictionSlip": 1.8, "sideFrictionStiffness": 1.0 },
+  "engine": {
+    "force": 21000,
+    "reverseForce": 9000,
+    "topSpeedKmh": 70,
+    "reverseTopSpeedKmh": 12,
+    "brakeForce": 900,
+    "handbrakeForce": 600,
+    "coastBrake": 30
+  },
+  "steering": { "maxAngle": 0.56, "speed": 1.1, "highSpeedFactor": 0.55 },
+  "stability": { "uprightAssist": 0, "maxLean": 0, "airBrake": true, "rollFactor": 0.35 },
+  "seats": [
+    {
+      "id": "driver",
+      "type": "driver",
+      "pose": "drive",
+      "position": [-0.85, -0.12, 4.85],
+      "exit": [-2.0, -1.5, 4.6]
+    },
+    {
+      "id": "seat-1",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [0.8, -0.2, 2.9],
+      "exit": [2.1, -1.5, 4.3],
+      "window": "left"
+    },
+    {
+      "id": "seat-2",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [-0.8, -0.2, 2.9],
+      "exit": [2.1, -1.5, 4.3],
+      "window": "right"
+    },
+    {
+      "id": "seat-3",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [0.8, -0.2, 1.7],
+      "exit": [2.1, -1.5, 4.3],
+      "window": "left"
+    },
+    {
+      "id": "seat-4",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [-0.8, -0.2, 1.7],
+      "exit": [2.1, -1.5, 4.3],
+      "window": "right"
+    },
+    {
+      "id": "seat-5",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [0.8, -0.2, -1.6],
+      "exit": [2.1, -1.5, -4.4],
+      "window": "left"
+    },
+    {
+      "id": "seat-6",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [-0.8, -0.2, -1.6],
+      "exit": [2.1, -1.5, -4.4],
+      "window": "right"
+    },
+    {
+      "id": "seat-7",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [0.8, -0.2, -2.8],
+      "exit": [2.1, -1.5, -4.4],
+      "window": "left"
+    },
+    {
+      "id": "seat-8",
+      "type": "passenger",
+      "pose": "sit",
+      "position": [-0.8, -0.2, -2.8],
+      "exit": [2.1, -1.5, -4.4],
+      "window": "right"
+    },
+    {
+      "id": "stand-1",
+      "type": "standing",
+      "pose": "standHoldRail",
+      "position": [0.05, 0.18, 2.3],
+      "exit": [2.1, -1.5, 4.3]
+    },
+    {
+      "id": "stand-2",
+      "type": "standing",
+      "pose": "standHoldRail",
+      "position": [-0.05, 0.18, 0.4],
+      "exit": [2.1, -1.5, 4.3]
+    },
+    {
+      "id": "stand-3",
+      "type": "standing",
+      "pose": "standHoldRail",
+      "position": [0.05, 0.18, -1.0],
+      "exit": [2.1, -1.5, -4.4]
+    },
+    {
+      "id": "stand-4",
+      "type": "standing",
+      "pose": "standHoldRail",
+      "position": [-0.05, 0.18, -2.2],
+      "exit": [2.1, -1.5, -4.4]
+    },
+    {
+      "id": "door-front",
+      "type": "doorHang",
+      "pose": "doorHang",
+      "position": [1.42, -0.08, 4.25],
+      "exit": [2.2, -1.5, 4.3]
+    },
+    {
+      "id": "door-rear",
+      "type": "doorHang",
+      "pose": "doorHang",
+      "position": [1.42, -0.08, -4.35],
+      "exit": [2.2, -1.5, -4.4]
+    }
+  ],
+  "camera": { "distance": 13, "height": 4.2, "lookHeight": 1.8, "fov": 60 },
+  "audio": { "horn": "bus", "engine": "diesel" },
+  "ai": { "cruiseSpeed": 8.5 }
+}
