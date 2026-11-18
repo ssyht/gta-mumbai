@@ -16,6 +16,7 @@ import { createSea } from '../../render/Water';
 import type { Route } from '../../ai/WaypointDriver';
 import { GreyboxBuildings } from '../buildings/GreyboxBuildings';
 import { StreetLights } from '../props/StreetLights';
+import { Vegetation } from '../props/Vegetation';
 
 /**
  * M1 test track: a road loop on reclaimed land with the Arabian Sea to the
@@ -289,39 +290,11 @@ export function buildTestTrack(scene: THREE.Scene, physics: PhysicsWorld, maxPoi
   tetras.frustumCulled = false;
   scene.add(tetras);
 
-  // Coconut palms along the promenade.
-  const palmPositions: THREE.Vector3[] = [];
+  // Coconut palms along the promenade (Marine Drive vibe).
+  const promenadePalms = new Vegetation();
   for (let z = -300; z <= 300; z += 18 + rnd() * 6)
-    palmPositions.push(new THREE.Vector3(-30 + rnd() * 3, 0.15, z));
-  const trunk = new THREE.InstancedMesh(
-    new THREE.CylinderGeometry(0.16, 0.26, 9, 7).translate(0, 4.5, 0),
-    new THREE.MeshStandardMaterial({ color: 0x7a6248, roughness: 0.95 }),
-    palmPositions.length,
-  );
-  const frondGeo = new THREE.ConeGeometry(0.5, 3.6, 4).translate(0, 1.8, 0).scale(1, 1, 0.18);
-  const fronds = new THREE.InstancedMesh(
-    frondGeo,
-    new THREE.MeshStandardMaterial({ color: 0x3f6b2a, roughness: 0.8, side: THREE.DoubleSide }),
-    palmPositions.length * 7,
-  );
-  palmPositions.forEach((p, i) => {
-    const lean = new THREE.Euler((rnd() - 0.5) * 0.25, rnd() * 6, (rnd() - 0.5) * 0.25);
-    const q = new THREE.Quaternion().setFromEuler(lean);
-    trunk.setMatrixAt(i, new THREE.Matrix4().compose(p, q, new THREE.Vector3(1, 1, 1)));
-    const top = new THREE.Vector3(0, 9, 0).applyQuaternion(q).add(p);
-    for (let f = 0; f < 7; f++) {
-      const fq = new THREE.Quaternion().setFromEuler(
-        new THREE.Euler(1.9 + rnd() * 0.4, (f / 7) * Math.PI * 2, 0, 'YXZ'),
-      );
-      fronds.setMatrixAt(i * 7 + f, new THREE.Matrix4().compose(top, fq, new THREE.Vector3(1, 1, 1)));
-    }
-    physics.addStaticCylinder({ x: p.x, y: 4.5, z: p.z }, 4.5, 0.22);
-  });
-  for (const im of [trunk, fronds]) {
-    im.castShadow = true;
-    im.frustumCulled = false;
-    scene.add(im);
-  }
+    promenadePalms.addPalm(new THREE.Vector3(-30 + rnd() * 3, 0.15, z), 10 + rnd() * 5);
+  promenadePalms.build(scene, physics);
 
   // --- Static props: sidewalks, ramps, walls, crates --------------------------
   const concreteMat = new THREE.MeshStandardMaterial({ map: concreteTexture(), roughness: 0.9 });
@@ -344,7 +317,7 @@ export function buildTestTrack(scene: THREE.Scene, physics: PhysicsWorld, maxPoi
     }),
   );
   bay.rotation.x = -Math.PI / 2;
-  bay.position.set(8.4, 0.012, 6);
+  bay.position.set(8.4, 0.012, -24);
   bay.receiveShadow = true;
   scene.add(bay);
 
@@ -557,7 +530,7 @@ export function buildTestTrack(scene: THREE.Scene, physics: PhysicsWorld, maxPoi
       kind: 'led',
     });
   }
-  lights.build();
+  // Lights are built by the engine after districts add their lamps.
 
   // Sagging, tangled overhead wires along the chawl row.
   const wirePts: number[] = [];
@@ -645,8 +618,8 @@ export function buildTestTrack(scene: THREE.Scene, physics: PhysicsWorld, maxPoi
     parking: {
       hatchback: { pos: new THREE.Vector3(20, 0, 26), yaw: Math.PI },
       scooter: { pos: new THREE.Vector3(16.5, 0, 31), yaw: Math.PI },
-      lorry: { pos: new THREE.Vector3(36, 0, 12), yaw: Math.PI },
-      auto: { pos: new THREE.Vector3(8.6, 0, 6), yaw: 0 },
+      lorry: { pos: new THREE.Vector3(52, 0, 40), yaw: Math.PI },
+      auto: { pos: new THREE.Vector3(8.6, 0, -28), yaw: 0 },
       bus: { pos: new THREE.Vector3(LANE, 0, 22), yaw: 0 },
     },
     lights,

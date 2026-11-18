@@ -7,11 +7,16 @@ export interface LampSpec {
   position: THREE.Vector3;
   /** Direction the arm reaches (unit, XZ). */
   facing: THREE.Vector3;
-  kind: 'sodium' | 'led';
+  /** Pole lamps (sodium/LED) or pole-less shop practicals (tube light, bare bulb). */
+  kind: 'sodium' | 'led' | 'tube' | 'bulb';
 }
 
 const SODIUM = new THREE.Color(1.0, 0.56, 0.2);
 const LED = new THREE.Color(0.85, 0.92, 1.0);
+const TUBE = new THREE.Color(0.8, 0.92, 1.0);
+const BULB = new THREE.Color(1.0, 0.62, 0.3);
+const COLOR = { sodium: SODIUM, led: LED, tube: TUBE, bulb: BULB } as const;
+const isPole = (l: LampSpec): boolean => l.kind === 'sodium' || l.kind === 'led';
 
 /**
  * Instanced street lamps (one draw call per part) with emissive heads that
@@ -38,17 +43,18 @@ export class StreetLights {
   }
 
   build(): void {
-    const n = this.lamps.length;
+    const poles = this.lamps.filter(isPole);
+    const n = poles.length;
     const poleMat = new THREE.MeshStandardMaterial({ color: 0x5b6266, roughness: 0.6, metalness: 0.6 });
     const pole = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.08, 0.12, 8, 8), poleMat, n);
     const arm = new THREE.InstancedMesh(new THREE.BoxGeometry(0.08, 0.08, 1.8), poleMat, n);
     const headGeo = new THREE.BoxGeometry(0.35, 0.12, 0.7);
     const headFor = (c: THREE.Color, count: number): THREE.InstancedMesh => {
       const mat = new THREE.MeshStandardNodeMaterial({ color: 0x222222, roughness: 0.4 });
-      mat.emissiveNode = vec3(c.r, c.g, c.b).mul(lightUniforms.street.mul(9));
+      mat.emissiveNode = vec3(c.r, c.g, c.b).mul(lightUniforms.street.mul(5));
       return new THREE.InstancedMesh(headGeo, mat, Math.max(1, count));
     };
-    const sodiumCount = this.lamps.filter((l) => l.kind === 'sodium').length;
+    const sodiumCount = poles.filter((l) => l.kind === 'sodium').length;
     const heads = { sodium: headFor(SODIUM, sodiumCount), led: headFor(LED, n - sodiumCount) };
     const headIdx = { sodium: 0, led: 0 };
     heads.sodium.count = sodiumCount;
@@ -68,7 +74,7 @@ export class StreetLights {
     const up = new THREE.Vector3(0, 1, 0);
     const s = new THREE.Vector3(1, 1, 1);
     const p = new THREE.Vector3();
-    this.lamps.forEach((l, i) => {
+    poles.forEach((l, i) => {
       const yaw = Math.atan2(l.facing.x, l.facing.z);
       q.setFromAxisAngle(up, yaw);
       m.compose(p.copy(l.position).setY(l.position.y + 4), q, s);
@@ -90,7 +96,8 @@ export class StreetLights {
         q,
         s,
       );
-      heads[l.kind].setMatrixAt(headIdx[l.kind]++, m);
+      const hk = l.kind === 'sodium' ? 'sodium' : 'led';
+      heads[hk].setMatrixAt(headIdx[hk]++, m);
       const c = l.kind === 'sodium' ? SODIUM : LED;
       m.compose(
         p
@@ -132,13 +139,17 @@ export class StreetLights {
         .slice(0, this.pool.length);
       ranked.forEach(({ l }, i) => {
         const light = this.pool[i]!;
-        light.position
-          .copy(l.position)
-          .addScaledVector(l.facing, 1.6)
-          .setY(l.position.y + 7.4);
-        light.color.copy(l.kind === 'sodium' ? SODIUM : LED);
+        if (isPole(l))
+          light.position
+            .copy(l.position)
+            .addScaledVector(l.facing, 1.6)
+            .setY(l.position.y + 7.4);
+        else light.position.copy(l.position);
+        light.color.copy(COLOR[l.kind]);
+        light.userData.k = isPole(l) ? 90 : l.kind === 'tube' ? 14 : 10;
+        light.distance = isPole(l) ? 26 : 9;
       });
     }
-    for (const light of this.pool) light.intensity = on * 160;
+    for (const light of this.pool) light.intensity = on * ((light.userData.k as number | undefined) ?? 160);
   }
 }

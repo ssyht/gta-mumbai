@@ -18,6 +18,9 @@ import { PlayerController } from '../actors/player/PlayerController';
 import { PlayerCamera } from '../actors/player/PlayerCamera';
 import { Npc, OUTFITS } from '../actors/npcs/Npc';
 import { WaypointDriver } from '../ai/WaypointDriver';
+import { RigInstancer } from '../actors/rig/RigInstancer';
+import { Crowd, type CrowdHazard } from '../actors/npcs/Crowd';
+import { buildBazaarStreet, type BazaarStreet } from '../world/districts/BazaarStreet';
 import { InteractionSystem } from '../gameplay/InteractionSystem';
 import { cityDensity } from '../gameplay/cityRhythm';
 import { AudioSystem } from '../audio/AudioSystem';
@@ -57,6 +60,9 @@ export class Engine {
   vehicles!: VehicleManager;
   player!: PlayerController;
   npcs = new Map<string, Npc>();
+  instancer!: RigInstancer;
+  crowd!: Crowd;
+  bazaar!: BazaarStreet;
   interaction!: InteractionSystem;
   audio!: AudioSystem;
   hud!: Hud;
@@ -102,12 +108,15 @@ export class Engine {
     await new AssetManager().ensureFonts();
     onStatus('Building the test track…');
     this.track = buildTestTrack(this.scene, this.physics, quality.maxPointLights);
+    onStatus('Building the bazaar street…');
+    this.bazaar = buildBazaarStreet(this.scene, this.physics, this.track.lights);
+    this.track.lights.build();
+    this.instancer = new RigInstancer(this.scene, 320);
 
     onStatus('Parking vehicles…');
     this.vehicles = new VehicleManager(this.scene, this.physics, this.bus);
     const P = this.track.parking;
-    this.vehicles.spawn('hatchback', 'hatchback', P.hatchback.pos, P.hatchback.yaw);
-    this.vehicles.spawn('scooter', 'scooter', P.scooter.pos, P.scooter.yaw);
+    for (const p of this.bazaar.parked) this.vehicles.spawn(p.profile, p.id, p.pos, p.yaw);
     this.vehicles.spawn('lorry', 'lorry', P.lorry.pos, P.lorry.yaw);
     const auto = this.vehicles.spawn('auto-rickshaw', 'auto', P.auto.pos, P.auto.yaw);
     const bus = this.vehicles.spawn('best-bus', 'bus', P.bus.pos, P.bus.yaw);
@@ -115,19 +124,19 @@ export class Engine {
     this.player = new PlayerController(
       this.scene,
       this.physics,
-      this.track.spawn.pos,
-      this.track.spawn.yaw,
+      this.bazaar.spawn.pos,
+      this.bazaar.spawn.yaw,
       (c) => this.vehicleHit(c),
     );
     this.player.onFellInSea = () => {
       this.respawn();
       this.bus.emit('ui:toast', { text: 'Splash! Raju swam back to the promenade.' });
     };
-    this.cam.yaw = this.track.spawn.yaw;
+    this.cam.yaw = this.bazaar.spawn.yaw;
 
     // NPC drivers and passengers.
     const addNpc = (id: string, outfit: keyof typeof OUTFITS, v: Vehicle, seatId: string): void => {
-      const n = new Npc(id, OUTFITS[outfit]!, this.scene, this.physics);
+      const n = new Npc(id, OUTFITS[outfit]!, this.scene, this.physics, this.instancer);
       const seat = v.seat(seatId);
       if (seat) n.sitIn(v, seat);
       this.npcs.set(id, n);
@@ -139,6 +148,8 @@ export class Engine {
     addNpc('bus-p3', 'kurtaMan', bus, 'seat-6');
     addNpc('bus-p4', 'dabbawala', bus, 'stand-2');
     addNpc('bus-p5', 'student', bus, 'door-rear');
+
+    this.crowd = new Crowd(this.scene, this.instancer, this.bazaar.crowdArea, 140, this.bazaar.idleSpots);
 
     const obstacles = (self: Vehicle) => (): THREE.Vector3[] => {
       const out: THREE.Vector3[] = [];
@@ -253,8 +264,24 @@ export class Engine {
     return null;
   }
 
+  private readonly hazardPool: CrowdHazard[] = [];
+  private crowdHazards(): CrowdHazard[] {
+    const out = this.hazardPool;
+    out.length = 0;
+    for (const v of this.vehicles.list) {
+      const lv = v.physics.body.linvel();
+      if (lv.x * lv.x + lv.z * lv.z < 4) continue;
+      out.push({
+        position: v.root.position,
+        velocity: new THREE.Vector3(lv.x, 0, lv.z),
+        radius: Math.max(v.profile.chassis.halfExtents[0], v.profile.chassis.halfExtents[2] * 0.6),
+      });
+    }
+    return out;
+  }
+
   respawn(): void {
-    this.player.teleport(this.track.spawn.pos, this.track.spawn.yaw);
+    this.player.teleport(this.bazaar.spawn.pos, this.bazaar.spawn.yaw);
     this.bus.emit('player:respawned', {});
   }
 
@@ -315,6 +342,8 @@ export class Engine {
     this.vehicles.syncVisuals(alpha, pv?.id ?? null);
     this.player.frameUpdate(dt, alpha);
     for (const n of this.npcs.values()) n.update(state.paused ? 0 : dt);
+    if (!state.paused) this.crowd.update(dt, this.player.position, this.crowdHazards());
+    this.instancer.update();
 
     this.tod.update(dt);
     const look = running ? input.lookDelta(dt) : { x: 0, y: 0 };
@@ -337,6 +366,7 @@ export class Engine {
     lightUniforms.time.value += dt;
 
     this.audio.density = cityDensity(this.tod.clockMinutes);
+    this.crowd.setDensity(this.audio.density);
     this.audio.update(
       dt,
       this.cam.camera.position,
