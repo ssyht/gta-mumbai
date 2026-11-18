@@ -24,6 +24,8 @@ async function boot(): Promise<void> {
       onStatus: (t) => (status.textContent = t),
     });
     (window as unknown as { __game: Engine }).__game = engine;
+    status.textContent = 'Warming up shaders…';
+    await Promise.race([engine.warm, new Promise((r) => setTimeout(r, 45000))]);
     status.textContent = `Ready · ${engine.gr.backend}`;
     startBtn.disabled = false;
     const go = (): void => {

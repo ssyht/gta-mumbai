@@ -72,6 +72,10 @@ export class Engine {
   settings: SettingsData;
   firstPerson = false;
   private last = performance.now();
+  private goodFrames = 0;
+  private warmResolve: (() => void) | null = null;
+  /** Resolves once frames run smoothly (shaders/pipelines compiled). */
+  readonly warm = new Promise<void>((r) => (this.warmResolve = r));
 
   private constructor(private readonly opts: EngineOptions) {
     this.settings = opts.settings;
@@ -212,6 +216,13 @@ export class Engine {
     });
 
     this.onResize();
+    // Compile every material up front so the first seconds of play don't stutter.
+    onStatus('Compiling shaders…');
+    try {
+      await this.gr.renderer.compileAsync(this.scene, this.cam.camera);
+    } catch (err) {
+      console.warn('Shader precompile skipped', err);
+    }
     this.gr.renderer.setAnimationLoop(() => this.frame());
   }
 
@@ -308,6 +319,13 @@ export class Engine {
     const frameMs = now - this.last;
     this.last = now;
     const dt = Math.min(frameMs / 1000, 0.1);
+    if (this.warmResolve) {
+      this.goodFrames = frameMs < 50 ? this.goodFrames + 1 : 0;
+      if (this.goodFrames > 20) {
+        this.warmResolve();
+        this.warmResolve = null;
+      }
+    }
     const input = this.input;
     input.poll();
 
