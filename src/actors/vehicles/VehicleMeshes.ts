@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { VehicleProfile } from './VehicleProfile';
 import { mulberry32, signTexture } from '../../render/materials/textures';
 
@@ -386,6 +387,95 @@ function buildLorry(v: VehicleVisual): void {
   v.headlightAnchor.set(0, -0.2, 4.15);
 }
 
+function buildTaxi(v: VehicleVisual): void {
+  const r = v.root;
+  const black = paint(0x141414, 0.35, 0.3);
+  const yellow = paint(0xf6c400, 0.4, 0.15);
+  const chrome = CHROME();
+  // Premier Padmini-style: rounded boxy sedan, black body, yellow roof.
+  box(r, black, 1.55, 0.5, 4.0, 0, 0.02, 0);
+  box(r, black, 1.52, 0.14, 1.1, 0, 0.32, 1.4);
+  box(r, black, 1.52, 0.14, 0.9, 0, 0.32, -1.5);
+  box(r, GLASS(), 1.38, 0.46, 1.8, 0, 0.52, -0.1, false);
+  box(r, yellow, 1.42, 0.08, 1.7, 0, 0.78, -0.1);
+  for (const x of [0.68, -0.68]) {
+    box(r, yellow, 0.08, 0.46, 0.09, x, 0.52, 0.78);
+    box(r, yellow, 0.08, 0.46, 0.09, x, 0.52, -0.98);
+    box(r, chrome, 0.04, 0.04, 3.9, x * 1.14, 0.18, 0);
+  }
+  box(r, chrome, 1.6, 0.14, 0.12, 0, -0.17, 2.02);
+  box(r, chrome, 1.6, 0.14, 0.12, 0, -0.17, -2.02);
+  box(r, chrome, 0.9, 0.2, 0.04, 0, 0.06, 2.01);
+  for (const x of [0.55, -0.55]) {
+    const hl = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.05, 14), v.headMat);
+    hl.rotation.x = Math.PI / 2;
+    hl.position.set(x, 0.08, 2.02);
+    r.add(hl);
+    box(r, v.tailMat, 0.18, 0.2, 0.05, x * 1.15, 0.12, -2.01, false);
+  }
+  const sign = signTexture(
+    [{ text: 'TAXI', size: 56, color: '#111', font: 'display', weight: 400 }],
+    '#f6c400',
+    256,
+    96,
+    { grime: false },
+  );
+  const s1 = plane(r, sign, 0.6, 0.22, 0, 0.95, -0.1, 0);
+  const s2 = plane(r, sign, 0.6, 0.22, 0, 0.95, -0.1, Math.PI);
+  void s1;
+  void s2;
+  box(r, BLACK(), 0.62, 0.24, 0.05, 0, 0.95, -0.1);
+  const plate = signTexture(
+    [{ text: 'MH 01 T 4517', size: 46, color: '#111', weight: 700 }],
+    '#f6c400',
+    256,
+    64,
+    { grime: false },
+  );
+  plane(r, plate, 0.5, 0.12, 0, -0.06, 2.09, 0);
+  plane(r, plate, 0.5, 0.12, 0, -0.06, -2.09, Math.PI);
+  v.headlightAnchor.set(0, 0.08, 2.05);
+}
+
+/**
+ * Merge every static (non-wheel, non-light) mesh of a vehicle by material:
+ * a vehicle drops from ~40 draw calls to ~8.
+ */
+function mergeStatic(v: VehicleVisual): void {
+  const keep = new Set<THREE.Object3D>(v.wheelPivots);
+  const groups = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  const victims: THREE.Mesh[] = [];
+  v.root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(v.root.matrixWorld).invert();
+  for (const child of [...v.root.children]) {
+    if (keep.has(child) || !(child instanceof THREE.Mesh) || child.children.length) continue;
+    const mat = child.material as THREE.Material;
+    if (mat === v.headMat || mat === v.tailMat || (mat as THREE.MeshStandardMaterial).map) continue;
+    const g = child.geometry
+      .clone()
+      .applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, child.matrixWorld));
+    const list = groups.get(mat) ?? [];
+    list.push(g.index ? g.toNonIndexed() : g);
+    groups.set(mat, list);
+    victims.push(child);
+  }
+  for (const m of victims) v.root.remove(m);
+  for (const [mat, list] of groups) {
+    const merged = mergeGeometries(
+      list.map((g) => {
+        for (const k of Object.keys(g.attributes))
+          if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
+        return g;
+      }),
+    );
+    if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    v.root.add(mesh);
+  }
+}
+
 export function buildVehicleVisual(profile: VehicleProfile, seed: number): VehicleVisual {
   const rnd = mulberry32(seed);
   const { headMat, tailMat } = lights();
@@ -413,6 +503,9 @@ export function buildVehicleVisual(profile: VehicleProfile, seed: number): Vehic
     case 'lorry':
       buildLorry(v);
       break;
+    case 'taxi':
+      buildTaxi(v);
+      break;
     default: {
       const [hx, hy, hz] = profile.chassis.halfExtents;
       box(v.root, paint(0x888888), hx * 2, hy * 2, hz * 2, 0, 0, 0);
@@ -425,5 +518,6 @@ export function buildVehicleVisual(profile: VehicleProfile, seed: number): Vehic
     v.wheelPivots.push(pivot);
     v.wheelSpinners.push(spinner);
   }
+  mergeStatic(v);
   return v;
 }

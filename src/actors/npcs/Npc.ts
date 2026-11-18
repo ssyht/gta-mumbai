@@ -4,6 +4,7 @@ import { Groups } from '../../physics/layers';
 import type { PhysicsWorld } from '../../physics/PhysicsWorld';
 import { HIP_HEIGHT, HumanoidRig, type Outfit } from '../rig/HumanoidRig';
 import * as P from '../rig/poses';
+import type { RigInstancer } from '../rig/RigInstancer';
 import type { SeatRuntime, Vehicle } from '../vehicles/Vehicle';
 
 export type NpcState = 'seated' | 'thrown' | 'gettingUp' | 'walkAway' | 'angry' | 'idle';
@@ -76,9 +77,11 @@ export class Npc {
     outfit: Outfit,
     private readonly scene: THREE.Scene,
     private readonly physics: PhysicsWorld,
+    instancer?: RigInstancer,
   ) {
-    this.rig = new HumanoidRig(outfit);
+    this.rig = new HumanoidRig(outfit, !!instancer);
     scene.add(this.rig.root);
+    instancer?.add(this.rig);
   }
 
   sitIn(vehicle: Vehicle, seat: SeatRuntime): void {

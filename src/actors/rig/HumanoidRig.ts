@@ -34,7 +34,7 @@ function mat(color: number, roughness = 0.8): THREE.MeshStandardMaterial {
   return m;
 }
 
-const geo = {
+export const RIG_GEO = {
   limbUpper: new THREE.CapsuleGeometry(0.052, 0.2, 4, 8),
   limbLower: new THREE.CapsuleGeometry(0.044, 0.2, 4, 8),
   thigh: new THREE.CapsuleGeometry(0.075, 0.28, 4, 8),
@@ -53,13 +53,22 @@ const geo = {
   belt: new THREE.CylinderGeometry(0.17, 0.17, 0.05, 12),
 };
 
+export type RigGeoKey = keyof typeof RIG_GEO;
+
 export class HumanoidRig {
   readonly root = new THREE.Group();
   readonly joints: Record<(typeof POSE_JOINTS)[number], THREE.Object3D>;
   /** Inner group that receives body offset/pitch/roll so the root can follow physics. */
   private readonly body = new THREE.Group();
 
-  constructor(outfit: Outfit) {
+  /** Proxy part nodes (instanced mode): geometry key + colour per node. */
+  readonly proxies: Array<{ node: THREE.Object3D; geo: RigGeoKey; color: number }> = [];
+
+  /**
+   * @param instanced when true, parts are empty nodes drawn by a shared
+   *   RigInstancer (crowds: ~14 draw calls total instead of ~17 per person).
+   */
+  constructor(outfit: Outfit, instanced = false) {
     const j = (name: string, x: number, y: number, z: number, parent: THREE.Object3D): THREE.Object3D => {
       const o = new THREE.Object3D();
       o.name = name;
@@ -77,7 +86,16 @@ export class HumanoidRig {
       sx = 1,
       sy = 1,
       sz = 1,
-    ): THREE.Mesh => {
+    ): THREE.Object3D => {
+      if (instanced) {
+        const node = new THREE.Object3D();
+        node.position.set(x, y, z);
+        node.scale.set(sx, sy, sz);
+        parent.add(node);
+        const key = (Object.keys(RIG_GEO) as RigGeoKey[]).find((k) => RIG_GEO[k] === g)!;
+        this.proxies.push({ node, geo: key, color });
+        return node;
+      }
       const m = new THREE.Mesh(g, mat(color));
       m.position.set(x, y, z);
       m.scale.set(sx, sy, sz);
@@ -88,19 +106,19 @@ export class HumanoidRig {
 
     this.root.add(this.body);
     const hips = j('hips', 0, HIP_HEIGHT, 0, this.body);
-    part(geo.pelvis, outfit.bottom, hips, 0, 0, 0);
+    part(RIG_GEO.pelvis, outfit.bottom, hips, 0, 0, 0);
     const spine = j('spine', 0, 0.08, 0, hips);
-    part(geo.torso, outfit.top, spine, 0, 0.22, 0, 1.15, 1, 0.72);
-    if (outfit.belt !== undefined) part(geo.belt, outfit.belt, spine, 0, -0.03, 0, 1, 1, 0.72);
+    part(RIG_GEO.torso, outfit.top, spine, 0, 0.22, 0, 1.15, 1, 0.72);
+    if (outfit.belt !== undefined) part(RIG_GEO.belt, outfit.belt, spine, 0, -0.03, 0, 1, 1, 0.72);
     const neck = j('neck', 0, 0.44, 0, spine);
-    part(geo.neck, outfit.skin, neck, 0, 0.03, 0);
+    part(RIG_GEO.neck, outfit.skin, neck, 0, 0.03, 0);
     const head = j('head', 0, 0.08, 0, neck);
-    part(geo.head, outfit.skin, head, 0, 0.1, 0.005, 0.92, 1.06, 1);
-    part(geo.hair, outfit.hair, head, 0, 0.12, -0.012);
-    part(geo.nose, outfit.skin, head, 0, 0.09, 0.1);
+    part(RIG_GEO.head, outfit.skin, head, 0, 0.1, 0.005, 0.92, 1.06, 1);
+    part(RIG_GEO.hair, outfit.hair, head, 0, 0.12, -0.012);
+    part(RIG_GEO.nose, outfit.skin, head, 0, 0.09, 0.1);
     if (outfit.cap !== undefined) {
-      part(geo.cap, outfit.cap, head, 0, 0.19, 0);
-      part(geo.capBrim, outfit.cap, head, 0, 0.16, 0.1);
+      part(RIG_GEO.cap, outfit.cap, head, 0, 0.19, 0);
+      part(RIG_GEO.capBrim, outfit.cap, head, 0, 0.16, 0.1);
     }
 
     const shoulderL = j('shoulderL', 0.205, 0.4, 0, spine);
@@ -111,9 +129,9 @@ export class HumanoidRig {
       [shoulderL, elbowL],
       [shoulderR, elbowR],
     ] as const) {
-      part(geo.limbUpper, outfit.top, s, 0, -0.145, 0);
-      part(geo.limbLower, outfit.skin, e, 0, -0.13, 0);
-      part(geo.hand, outfit.skin, e, 0, -0.27, 0.005);
+      part(RIG_GEO.limbUpper, outfit.top, s, 0, -0.145, 0);
+      part(RIG_GEO.limbLower, outfit.skin, e, 0, -0.13, 0);
+      part(RIG_GEO.hand, outfit.skin, e, 0, -0.27, 0.005);
     }
 
     const hipL = j('hipL', 0.1, -0.05, 0, hips);
@@ -124,13 +142,13 @@ export class HumanoidRig {
       [hipL, kneeL],
       [hipR, kneeR],
     ] as const) {
-      part(geo.thigh, outfit.bottom, h, 0, -0.21, 0);
-      part(geo.shin, outfit.bottom, k, 0, -0.2, 0);
-      part(geo.foot, outfit.shoes, k, 0, -0.42, 0.05);
+      part(RIG_GEO.thigh, outfit.bottom, h, 0, -0.21, 0);
+      part(RIG_GEO.shin, outfit.bottom, k, 0, -0.2, 0);
+      part(RIG_GEO.foot, outfit.shoes, k, 0, -0.42, 0.05);
     }
     if (outfit.drape !== undefined) {
-      const d = part(geo.drape, outfit.drape, hips, 0, -0.32, 0);
-      (d.material as THREE.MeshStandardMaterial).side = THREE.DoubleSide;
+      const d = part(RIG_GEO.drape, outfit.drape, hips, 0, -0.32, 0);
+      if (d instanceof THREE.Mesh) (d.material as THREE.MeshStandardMaterial).side = THREE.DoubleSide;
     }
 
     this.joints = { hips, spine, neck, head, shoulderL, elbowL, shoulderR, elbowR, hipL, kneeL, hipR, kneeR };
