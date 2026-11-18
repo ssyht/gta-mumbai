@@ -1,5 +1,10 @@
 import * as THREE from 'three/webgpu';
 import {
+  builtinAOContext,
+  convertToTexture,
+  mrt,
+  normalView,
+  screenUV,
   dot,
   float,
   fract,
@@ -19,6 +24,8 @@ import {
 } from 'three/tsl';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { fxaa } from 'three/addons/tsl/display/FXAANode.js';
+import { ao } from 'three/addons/tsl/display/GTAONode.js';
+import { denoise } from 'three/addons/tsl/display/DenoiseNode.js';
 import type { QualityConfig } from '../core/Settings';
 import type { GradeKey } from './sky/lightingCurves';
 
@@ -58,6 +65,20 @@ export class PostFX {
     const u = this.u;
     this.bloomScale = quality.bloom;
     const scenePass = pass(scene, camera, { samples: quality.msaaSamples });
+    if (quality.ao) {
+      // Depth/normal pre-pass → half-res GTAO, fed back into the scene's ambient/indirect light.
+      const pre = pass(scene, camera);
+      pre.setMRT(mrt({ output: normalView }));
+      const depth = pre.getTextureNode('depth');
+      const normal = pre.getTextureNode();
+      const aoNode = ao(depth, normal, camera);
+      aoNode.resolutionScale = 0.5;
+      aoNode.radius.value = 0.6;
+      aoNode.distanceExponent.value = 1.4;
+      // Spatial denoise: GTAO without TRAA is noisy on thin geometry (awnings, rails).
+      const aoClean = denoise(aoNode.getTextureNode(), depth, normal, camera);
+      scenePass.contextNode = builtinAOContext(convertToTexture(aoClean).sample(screenUV).r);
+    }
     const sceneColor = scenePass.getTextureNode('output');
 
     // Clamp HDR before bloom so the sun disc doesn't flood the frame.

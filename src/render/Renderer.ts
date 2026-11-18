@@ -40,7 +40,7 @@ export class GameRenderer {
       powerPreference: 'high-performance',
     });
     await renderer.init();
-    renderer.toneMapping = THREE.AgXToneMapping;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;

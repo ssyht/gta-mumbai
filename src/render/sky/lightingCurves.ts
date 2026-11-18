@@ -56,7 +56,7 @@ export function sunColor(altDeg: number): RGB {
 /** Directional sun intensity; fades to zero just below the horizon. */
 export function sunIntensity(altDeg: number): number {
   const s = Math.sin((Math.max(0, altDeg) * Math.PI) / 180);
-  return smoothstep(-1.5, 6, altDeg) * (0.9 + 2.6 * s);
+  return smoothstep(-1.5, 6, altDeg) * (1.0 + 3.4 * s);
 }
 
 /** Cool moonlight, only when the sun is down and the moon is up. */
@@ -112,17 +112,17 @@ export const GRADE_KEYS: Record<Exclude<DayPhase, 'day'> | 'midday', GradeKey> =
     hemiIntensity: 0.65,
   },
   midday: {
-    tint: [1.03, 1.0, 0.95],
-    shadowTint: [0.97, 1.0, 1.03],
-    highlightTint: [1.04, 1.0, 0.94],
-    saturation: 0.94,
-    contrast: 0.96,
-    exposure: 0.82,
+    tint: [1.04, 1.0, 0.94],
+    shadowTint: [0.92, 0.99, 1.05],
+    highlightTint: [1.06, 1.0, 0.92],
+    saturation: 1.12,
+    contrast: 1.04,
+    exposure: 0.62,
     bloom: 0.12,
-    fogColor: [0.8, 0.82, 0.82],
-    fogDensity: 0.0021,
-    hemiSky: [0.74, 0.82, 0.96],
-    hemiGround: [0.46, 0.4, 0.33],
+    fogColor: [0.72, 0.8, 0.88],
+    fogDensity: 0.0013,
+    hemiSky: [0.86, 0.84, 0.8],
+    hemiGround: [0.62, 0.48, 0.34],
     hemiIntensity: 1.1,
   },
   golden: {
@@ -145,8 +145,8 @@ export const GRADE_KEYS: Record<Exclude<DayPhase, 'day'> | 'midday', GradeKey> =
     highlightTint: [1.12, 0.94, 0.82],
     saturation: 1.06,
     contrast: 1.05,
-    exposure: 1.4,
-    bloom: 0.7,
+    exposure: 1.05,
+    bloom: 0.55,
     fogColor: [0.22, 0.28, 0.42],
     fogDensity: 0.003,
     hemiSky: [0.26, 0.33, 0.56],
@@ -159,8 +159,8 @@ export const GRADE_KEYS: Record<Exclude<DayPhase, 'day'> | 'midday', GradeKey> =
     highlightTint: [1.14, 0.96, 0.82],
     saturation: 1.1,
     contrast: 1.1,
-    exposure: 1.75,
-    bloom: 0.9,
+    exposure: 0.95,
+    bloom: 0.6,
     fogColor: [0.09, 0.09, 0.12],
     fogDensity: 0.0028,
     hemiSky: [0.1, 0.14, 0.26],

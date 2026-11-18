@@ -61,10 +61,19 @@ export class SkySystem {
   private readonly uFog = uniform(new THREE.Color(0.8, 0.8, 0.8));
   private readonly uSunTint = uniform(new THREE.Color(1, 0.6, 0.3));
   private readonly uMoonBright = uniform(1);
+  private readonly uSkyGain = uniform(0.6);
   private readonly tmp = new THREE.Vector3();
+  // Image-based light: a sun-disc-free copy of the sky baked to PMREM as the sun moves.
+  private readonly envScene = new THREE.Scene();
+  private readonly envSky = new SkyMesh();
+  private readonly pmrem: THREE.PMREMGenerator;
+  private envTarget: THREE.RenderTarget | null = null;
+  private readonly envSunDir = new THREE.Vector3(0, -2, 0);
+  private envTimer = 0;
+  envIntensity = 0.42;
 
   constructor(
-    scene: THREE.Scene,
+    private readonly scene: THREE.Scene,
     private readonly renderer: THREE.WebGPURenderer,
     quality: QualityConfig,
   ) {
@@ -77,13 +86,22 @@ export class SkySystem {
     this.sky.mieDirectionalG.value = 0.82;
     this.sky.cloudCoverage.value = 0.32;
     this.sky.cloudDensity.value = 0.35;
+    // Physical sky luminance clips to white under the filmic curve; tame it so
+    // midday reads as a deep tropical blue.
+    const skyMat = this.sky.material as THREE.NodeMaterial;
+    if (skyMat.colorNode) skyMat.colorNode = skyMat.colorNode.mul(this.uSkyGain);
     scene.add(this.sky);
+    this.envSky.scale.setScalar(1000);
+    this.envSky.showSunDisc.value = 0;
+    this.envSky.cloudCoverage.value = 0;
+    this.envScene.add(this.envSky);
+    this.pmrem = new THREE.PMREMGenerator(renderer);
 
     this.key = new THREE.DirectionalLight(0xffffff, 3);
     this.key.castShadow = true;
     this.key.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
     this.key.shadow.bias = -0.0004;
-    this.key.shadow.normalBias = 0.04;
+    this.key.shadow.normalBias = 0.09;
     const cam = this.key.shadow.camera;
     cam.near = 1;
     cam.far = 600;
@@ -200,6 +218,27 @@ export class SkySystem {
   /** Kept for API stability with the M2.5 CSM version. */
   setCamera(_camera: THREE.PerspectiveCamera): void {}
 
+  private updateEnvironment(sunDir: THREE.Vector3, alt: number): void {
+    // Rebake only when the sun has really moved (~1.2°); PMREM bakes are not free.
+    this.envTimer -= 1 / 60;
+    if (this.envSunDir.angleTo(sunDir) < 0.02 && this.envTimer > -600) return;
+    this.envTimer = 0;
+    this.envSunDir.copy(sunDir);
+    const u = this.envSky;
+    u.sunPosition.value.copy(sunDir);
+    u.turbidity.value = this.sky.turbidity.value;
+    u.rayleigh.value = this.sky.rayleigh.value;
+    u.mieCoefficient.value = this.sky.mieCoefficient.value;
+    u.mieDirectionalG.value = this.sky.mieDirectionalG.value;
+    const next = this.pmrem.fromScene(this.envScene, 0.04, 1, 4000);
+    this.envTarget?.dispose();
+    this.envTarget = next;
+    this.scene.environment = next.texture;
+    // Night sky is black in the PMREM; keep a faint moon/skyglow fill via the hemisphere instead.
+    this.scene.environmentIntensity =
+      this.envIntensity * (0.25 + 0.75 * THREE.MathUtils.smoothstep(alt, -6, 10));
+  }
+
   update(tod: TimeOfDay, camera: THREE.Camera, post: PostFX): void {
     const sunDir = tod.sunDir;
     const moonDir = tod.moonDir;
@@ -244,12 +283,15 @@ export class SkySystem {
     this.sky.sunPosition.value.copy(sunDir);
     // Humid haze: thicker scattering when the sun is low.
     const low = 1 - THREE.MathUtils.smoothstep(alt, 0, 25);
-    this.sky.turbidity.value = 6 + 4 * low;
-    this.sky.rayleigh.value = 1.3 + 1.4 * low;
+    // Deep tropical blue at midday, thick humid haze near the horizon at dawn/dusk.
+    this.sky.turbidity.value = 2.6 + 6 * low;
+    this.sky.rayleigh.value = 2.2 + 0.8 * low;
+    this.updateEnvironment(sunDir, alt);
 
     this.hemi.color.setRGB(...g.hemiSky);
     this.hemi.groundColor.setRGB(...g.hemiGround);
-    this.hemi.intensity = g.hemiIntensity;
+    // The PMREM sky now provides most ambient light; the hemisphere only fills in.
+    this.hemi.intensity = g.hemiIntensity * 0.35;
 
     this.fog.color.setRGB(...g.fogColor);
     this.fog.density = g.fogDensity * this.fogBias;

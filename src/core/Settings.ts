@@ -28,6 +28,8 @@ export interface QualityConfig {
   shadowFar: number;
   msaaSamples: number;
   fxaa: boolean;
+  /** GTAO contact shadows (adds a depth/normal pre-pass). */
+  ao: boolean;
   bloom: number;
   filmGrain: boolean;
   maxPointLights: number;
@@ -44,6 +46,7 @@ export const QUALITY_PRESETS: Record<QualityPreset, QualityConfig> = {
     shadowFar: 260,
     msaaSamples: 4,
     fxaa: false,
+    ao: true,
     bloom: 1,
     filmGrain: true,
     maxPointLights: 12,
@@ -58,6 +61,7 @@ export const QUALITY_PRESETS: Record<QualityPreset, QualityConfig> = {
     shadowFar: 200,
     msaaSamples: 4,
     fxaa: false,
+    ao: true,
     bloom: 1,
     filmGrain: true,
     maxPointLights: 8,
@@ -72,6 +76,7 @@ export const QUALITY_PRESETS: Record<QualityPreset, QualityConfig> = {
     shadowFar: 160,
     msaaSamples: 0,
     fxaa: true,
+    ao: false,
     bloom: 0.9,
     filmGrain: true,
     maxPointLights: 6,
@@ -86,6 +91,7 @@ export const QUALITY_PRESETS: Record<QualityPreset, QualityConfig> = {
     shadowFar: 120,
     msaaSamples: 0,
     fxaa: true,
+    ao: false,
     // Grade and bloom stay on at every preset: they carry most of the look.
     bloom: 0.8,
     filmGrain: false,
