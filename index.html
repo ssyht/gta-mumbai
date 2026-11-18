@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mumbai Open World · M1</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="description" content="Open-world browser prototype set in Mumbai: drive or ride anything, sun synced to your clock." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;600;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="ui"></div>
+    <div id="title">
+      <div class="card">
+        <p class="eyebrow">M1 · Feel prototype</p>
+        <h1>MUMBAI</h1>
+        <p class="devanagari">मुंबई</p>
+        <p class="lede">Drive or ride anything that moves. The sun follows your own clock, read as Mumbai time.</p>
+        <ul class="keys">
+          <li><kbd>WASD</kbd>Move / drive</li>
+          <li><kbd>F</kbd>Drive · carjack · get out</li>
+          <li><kbd>G</kbd>Ride as passenger</li>
+          <li><kbd>H</kbd>Horn</li>
+          <li><kbd>Space</kbd>Jump · vault · handbrake</li>
+          <li><kbd>V</kbd>Camera / window view</li>
+          <li><kbd>Esc</kbd>Menu &amp; settings</li>
+        </ul>
+        <button id="start" disabled>Start</button>
+        <p id="status">Loading…</p>
+        <p class="fine">Working title “GTA: Mumbai”. Private, non-commercial hobby project.</p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

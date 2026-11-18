@@ -1,0 +1,375 @@
+@font-face {
+  font-family: 'Bebas Neue';
+  src: url('/fonts/BebasNeue-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+:root {
+  --peeli: #ffcf1a;
+  --kaali: #121212;
+  --ink: #f4efe6;
+  --muted: #b9b2a6;
+  --panel: rgba(14, 12, 10, 0.62);
+  --line: rgba(255, 255, 255, 0.12);
+  --bad: #ff5a4f;
+  --warn: #ffcf1a;
+  --ok: #7ee08a;
+  --display: 'Bebas Neue', Impact, sans-serif;
+  --text: Mukta, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0b0c;
+  color: var(--ink);
+  font-family: var(--text);
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.7em;
+  padding: 0 0.45em;
+  margin-right: 0.5em;
+  border-radius: 4px;
+  background: var(--peeli);
+  color: var(--kaali);
+  font-family: var(--display);
+  font-size: 1.05em;
+  letter-spacing: 0.04em;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Perf HUD */
+#perf {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+  font:
+    11px/1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  color: #ddd;
+  white-space: nowrap;
+}
+#perf .ok {
+  color: var(--ok);
+}
+#perf .warn {
+  color: var(--warn);
+}
+#perf .bad {
+  color: var(--bad);
+}
+
+/* Clock */
+#clock {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  text-align: right;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+#clock b {
+  display: block;
+  font-family: var(--display);
+  font-size: 46px;
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: 0.03em;
+}
+#clock span {
+  display: block;
+  color: var(--peeli);
+  font-weight: 600;
+  font-size: 15px;
+}
+#clock small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Interaction prompt */
+#prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 9vh;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 18px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  font-size: 15px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+
+/* Toast */
+#toast {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translate(-50%, -8px);
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 9px 16px;
+  background: var(--kaali);
+  border-left: 4px solid var(--peeli);
+  border-radius: 6px;
+  font-weight: 600;
+  opacity: 0;
+  transition:
+    opacity 0.25s,
+    transform 0.25s;
+}
+
+/* Speedometer */
+#speedo {
+  display: none;
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  text-align: right;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
+#speedo b {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 72px;
+  line-height: 0.9;
+}
+#speedo small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+#speedo span {
+  display: block;
+  color: var(--peeli);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+/* Auto meter */
+#fare {
+  display: none;
+  position: absolute;
+  left: 18px;
+  bottom: 22px;
+  padding: 10px 14px;
+  background: #1b0606;
+  border: 2px solid #3b0d0d;
+  border-radius: 8px;
+  font-family: ui-monospace, Menlo, monospace;
+  color: #ff4a3a;
+  text-shadow: 0 0 8px rgba(255, 60, 40, 0.7);
+}
+#fare b {
+  display: block;
+  font-size: 30px;
+}
+#fare small {
+  display: block;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* Title / start */
+#title {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: radial-gradient(ellipse at 30% 40%, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.72));
+  transition: opacity 0.4s;
+}
+#title.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+#title .card {
+  width: min(520px, 100%);
+  padding: 28px 30px;
+  background: rgba(10, 9, 8, 0.78);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--peeli);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+}
+#title .eyebrow {
+  margin: 0;
+  color: var(--peeli);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+#title h1 {
+  margin: 4px 0 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(64px, 14vw, 104px);
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+}
+#title .devanagari {
+  margin: 0 0 10px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--peeli);
+}
+#title .lede {
+  margin: 0 0 14px;
+  color: var(--muted);
+}
+.keys {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px 14px;
+  font-size: 14px;
+}
+#start,
+#menu button {
+  font-family: var(--display);
+  font-size: 26px;
+  letter-spacing: 0.06em;
+  padding: 8px 28px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--peeli);
+  color: var(--kaali);
+  cursor: pointer;
+}
+#start:disabled {
+  opacity: 0.4;
+  cursor: wait;
+}
+#status {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+#status.error {
+  color: var(--bad);
+}
+.fine {
+  margin: 10px 0 0;
+  color: #807a70;
+  font-size: 11px;
+}
+
+/* Pause menu */
+#menu {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: none;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+}
+#menu.open {
+  display: grid;
+}
+#menu .panel {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 22px 26px;
+  background: rgba(12, 11, 10, 0.92);
+  border-top: 4px solid var(--peeli);
+  border-radius: 12px;
+}
+#menu h2 {
+  margin: 0 0 10px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 44px;
+  letter-spacing: 0.04em;
+}
+#menu h3 {
+  margin: 18px 0 8px;
+  color: var(--peeli);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+#menu label {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+  font-size: 14px;
+}
+#menu label.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#menu select,
+#menu input[type='range'] {
+  width: 100%;
+  accent-color: var(--peeli);
+}
+#menu select {
+  padding: 6px;
+  background: #1d1b19;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+#menu .note {
+  color: var(--warn);
+  font-size: 13px;
+}
+#menu .note button {
+  font-size: 16px;
+  padding: 2px 10px;
+}
+
+@media (max-width: 640px) {
+  #prompt {
+    flex-wrap: wrap;
+    white-space: normal;
+    width: calc(100vw - 32px);
+    font-size: 13px;
+  }
+  #clock b {
+    font-size: 34px;
+  }
+}

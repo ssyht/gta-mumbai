@@ -1,0 +1,39 @@
+{
+  "name": "gta-mumbai",
+  "private": true,
+  "version": "0.1.0",
+  "description": "GTA: Mumbai (working title). Private, non-commercial hobby project: an open-world browser game set in Mumbai, built on Three.js.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . && prettier --check \"src/**/*.{ts,json,css}\" \"*.{json,md}\"",
+    "format": "prettier --write \"src/**/*.{ts,json,css}\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0",
+    "lil-gui": "0.21.0",
+    "suncalc": "1.9.0",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/suncalc": "1.9.2",
+    "@types/three": "0.187.0",
+    "eslint": "10.14.0",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "17.14.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
+    "vitest": "5.1.0"
+  }
+}

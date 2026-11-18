@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.vercel/
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+# raw art sources never go in git (CLAUDE.md §6, §10)
+/assets-src/
+# tool caches
+/tools/.cache/
+.omc/
