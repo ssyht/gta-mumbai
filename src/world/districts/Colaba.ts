@@ -7,6 +7,7 @@ import { createSea } from '../../render/Water';
 import { Bucket, createPlasterMaterial, FACADE_CELL } from '../buildings/StreetBuildings';
 import type { StreetLights } from '../props/StreetLights';
 import { Vegetation } from '../props/Vegetation';
+import type { RoadPolyline } from '../roads/LaneGraph';
 
 /**
  * M2 Colaba / Apollo Bunder from real OpenStreetMap data (CLAUDE.md §2, §9).
@@ -31,21 +32,25 @@ export interface ColabaDistrict {
   bounds: THREE.Box2;
   parked: Array<{ profile: string; id: string; pos: THREE.Vector3; yaw: number }>;
   attribution: string;
+  /** Road centre lines in world space, for the lane graph. */
+  roads: RoadPolyline[];
 }
 
+/** Collision height of Colaba land; roads are drawn in a thin band around it. */
+const LAND_Y = 0.045;
 const ROAD_Y: Record<string, number> = {
-  primary: 0.06,
-  primary_link: 0.058,
-  secondary: 0.055,
-  secondary_link: 0.053,
+  primary: 0.052,
+  primary_link: 0.0515,
+  secondary: 0.051,
+  secondary_link: 0.0505,
   tertiary: 0.05,
-  residential: 0.045,
-  living_street: 0.043,
-  pedestrian: 0.04,
-  service: 0.038,
-  footway: 0.034,
-  path: 0.032,
-  steps: 0.032,
+  residential: 0.0495,
+  living_street: 0.049,
+  pedestrian: 0.0485,
+  service: 0.048,
+  footway: 0.0475,
+  path: 0.047,
+  steps: 0.047,
 };
 const FOOT = new Set(['footway', 'path', 'steps', 'pedestrian']);
 const PLASTERS = [
@@ -145,18 +150,42 @@ export function buildColaba(
       id,
       inm,
       [
-        [x0, 0, z1],
-        [x1, 0, z1],
-        [x1, 0, z0],
-        [x0, 0, z0],
+        [x0, LAND_Y - 0.015, z1],
+        [x1, LAND_Y - 0.015, z1],
+        [x1, LAND_Y - 0.015, z0],
+        [x0, LAND_Y - 0.015, z0],
       ],
       [0, 1, 0],
       [x0 / 6, z1 / 6, x1 / 6, z0 / 6],
       white,
     );
-    physics.addStaticBox(
-      { x: (x0 + x1) / 2, y: -0.5, z: (z0 + z1) / 2 },
-      { x: (x1 - x0) / 2, y: 0.5, z: (z1 - z0) / 2 },
+  }
+  // One seamless heightfield for all land (hundreds of adjacent boxes made the
+  // character controller snag on their seams). Land sits at road level; sea
+  // cells drop away under the sea wall.
+  {
+    const nr = g.rows + 1;
+    const nc = g.cols + 1;
+    const isLand = (r: number, c: number): boolean => {
+      const runs = g.mask[r];
+      if (!runs || c < 0) return false;
+      for (let i = 0; i < runs.length; i += 2) if (c >= runs[i]! && c < runs[i]! + runs[i + 1]!) return true;
+      return false;
+    };
+    const heights = new Float32Array(nr * nc);
+    for (let c = 0; c < nc; c++) {
+      for (let r = 0; r < nr; r++) {
+        const land = isLand(r, c) || isLand(r - 1, c) || isLand(r, c - 1) || isLand(r - 1, c - 1);
+        heights[c * nr + r] = land ? LAND_Y : -3;
+      }
+    }
+    const R = physics.R;
+    physics.world.createCollider(
+      R.ColliderDesc.heightfield(g.rows, g.cols, heights, { x: g.cols * g.cell, y: 1, z: g.rows * g.cell })
+        .setTranslation(g.minX + (g.cols * g.cell) / 2 + O.x, 0, g.minZ + (g.rows * g.cell) / 2 + O.z)
+        .setCollisionGroups(Groups.STATIC)
+        .setFriction(0.9),
+      physics.ground,
     );
   }
   const pav = paverTexture();
@@ -250,7 +279,7 @@ export function buildColaba(
       const e1 = new THREE.Vector3(cx1 - ax1, 0, cz1 - az1);
       const e2 = new THREE.Vector3(ax0 - ax1, 0, az0 - az1);
       if (new THREE.Vector3().crossVectors(e1, e2).y < 0) corners.reverse();
-      bucket.quad(id, inm, corners, [0, 1, 0], [0, v / 6, rd.w / 6, (v + len) / 6], white);
+      bucket.quad(id, inm, corners, [0, 1, 0], [v / 6, 0, (v + len) / 6, rd.w / 6], white);
       v += len;
     }
     // Round caps at junctions hide gaps where roads meet at angles.
@@ -545,6 +574,7 @@ export function buildColaba(
     ),
     parked,
     attribution: data.attribution,
+    roads: data.roads.map((r) => ({ pts: r.pts.map((p) => W(p, LAND_Y)), width: r.w, cls: r.cls })),
   };
 }
 
@@ -680,7 +710,7 @@ export function buildConnector(
   const seg = (a: THREE.Vector3, c: THREE.Vector3): void => {
     const d = c.clone().sub(a).setY(0).normalize();
     const n = new THREE.Vector3(d.z, 0, -d.x).multiplyScalar(half);
-    const y = 0.07;
+    const y = 0.022;
     const corners: [number, number, number][] = [
       [a.x - n.x, y, a.z - n.z],
       [c.x - n.x, y, c.z - n.z],
