@@ -12,6 +12,16 @@ import { StatusHud } from '../ui/StatusHud';
 import { Phone } from '../ui/Phone';
 import { TouchControls } from '../ui/TouchControls';
 import { Weather } from '../render/Weather';
+import { InteriorCell, type InteriorData } from '../world/interiors/InteriorCell';
+import { InteriorAudio } from '../audio/InteriorAudio';
+import { Subtitles } from '../ui/Subtitles';
+import { ScenarioDirector } from '../gameplay/scenario/ScenarioDirector';
+import { KiranaScenario } from '../gameplay/shop/KiranaScenario';
+import laxmiGeneral from '../data/interiors/laxmi-general.json';
+
+const INTERIOR_DATA: Record<string, InteriorData> = {
+  'laxmi-general': laxmiGeneral as unknown as InteriorData,
+};
 
 /**
  * M5 + M8 systems on top of the engine: health/money, combat, wanted level &
@@ -31,6 +41,12 @@ export class GameplayLayer {
   readonly status: StatusHud;
   readonly phone: Phone;
   readonly places: Record<string, THREE.Vector3>;
+  readonly scenario = new ScenarioDirector();
+  readonly interiors: InteriorCell[] = [];
+  readonly interiorAudio: InteriorAudio;
+  readonly subtitles: Subtitles;
+  kirana: KiranaScenario | null = null;
+  private adapt = 1;
   private readonly pickups: Pickups;
   private saveTimer = 30;
   private copShot = 0;
@@ -125,6 +141,63 @@ export class GameplayLayer {
       { pos: this.places.gateway!.clone().add(new THREE.Vector3(-8, 0, -8)), kind: 'health' },
     ]);
 
+    // Walk-in interiors (SCENARIOS.md A1) and the C1 Kirana scenario.
+    this.interiorAudio = new InteriorAudio(e.audio.listener);
+    this.subtitles = new Subtitles(ui);
+    this.subtitles.enabled = e.settings.subtitles;
+    for (const slot of e.bazaar.interiors) {
+      const data = INTERIOR_DATA[slot.id];
+      if (!data) continue;
+      const cell = new InteriorCell(e.scene, e.physics, slot, data);
+      cell.onShutter = (_opening, at) =>
+        this.interiorAudio.clink('shutter', at.distanceTo(e.cam.camera.position));
+      this.interiors.push(cell);
+      // The old hold-E robbery uses the counter, and only with a gun out (C2 lands in Pack 3).
+      const sf = e.bazaar.shopFronts.find((f) => f.interior === slot.id);
+      if (sf)
+        sf.pos.copy(
+          cell.toWorld(
+            new THREE.Vector3(data.interaction.counterFront.x, 0.05, data.interaction.counterFront.z),
+          ),
+        );
+      if (data.kind === 'kirana') {
+        this.kirana = new KiranaScenario(
+          cell,
+          {
+            playerRig: e.player.rig,
+            playerPos: () => e.player.position,
+            playerYaw: () => e.player.yaw,
+            teleportPlayer: (feet, yaw) => {
+              e.player.teleport(feet, yaw);
+              e.cam.yaw = yaw;
+            },
+            playerOnFoot: () => e.player.isOnFoot,
+            armed: () => e.store.get().weapon === 'pistol',
+            camera: e.cam.camera,
+            input: e.input as unknown as { wasPressed(a: string): boolean; isDown(a: string): boolean },
+            money: () => e.store.get().stats.money,
+            pay: (amount, reason) => this.stats.pay(amount, reason),
+            heal: (hp) => this.stats.heal(hp),
+            hint: (text) => bus.emit('ui:hint', { text }),
+            toast: (text) => bus.emit('ui:toast', { text }),
+            clockMinutes: () => e.tod.clockMinutes,
+            smoke: (at) =>
+              e.particles.emit('smoke', at, {
+                size: 0.03,
+                life: 2.2,
+                spread: 0.02,
+                vel: new THREE.Vector3(0, 0.25, 0),
+              }),
+          },
+          this.interiorAudio,
+          this.scenario,
+          this.subtitles,
+          ui,
+        );
+      }
+    }
+    this.robbery.skip = (s) => !!s.interior && store.get().weapon !== 'pistol';
+
     this.minimap = new Minimap(ui, e.graph);
     this.status = new StatusHud(ui, bus, store);
     this.phone = new Phone(ui);
@@ -195,6 +268,33 @@ export class GameplayLayer {
     }
   }
 
+  private floorPlanOf(c: InteriorCell): NonNullable<Minimap['floorPlan']> {
+    const rect = (x: number, z: number, w: number, d: number, color: string) => ({
+      corners: (
+        [
+          [x - w / 2, z - d / 2],
+          [x + w / 2, z - d / 2],
+          [x + w / 2, z + d / 2],
+          [x - w / 2, z + d / 2],
+        ] as Array<[number, number]>
+      ).map(([lx, lz]) => {
+        const p = c.toWorld(new THREE.Vector3(lx, 0, lz));
+        return [p.x, p.z] as [number, number];
+      }),
+      color,
+    });
+    const rects = [rect(0, -c.slot.roomD / 2, c.slot.roomW, c.slot.roomD, 'rgba(232, 222, 200, 0.55)')];
+    for (const p of c.data.props) {
+      if (p.type === 'counter' || p.type === 'counterReturn')
+        rects.push(rect(p.x, p.z, Number(p.w), Number(p.d), 'rgba(70, 120, 180, 0.9)'));
+      if (p.type === 'rack' || p.type === 'woodRack')
+        rects.push(rect(p.x, p.z, Number(p.w), Number(p.d), 'rgba(150, 160, 165, 0.9)'));
+      if (p.type === 'fridge') rects.push(rect(p.x, p.z, 0.62, 0.6, 'rgba(240, 240, 240, 0.95)'));
+    }
+    rects.push(rect(0, 0.1, c.slot.doorWidth, 0.2, 'rgba(255, 207, 26, 0.9)'));
+    return { rects, label: c.data.title };
+  }
+
   private showMissions(): void {
     const list = this.missions.available.map((m) => ({
       key: m.id,
@@ -262,6 +362,32 @@ export class GameplayLayer {
         this.robbery.update(dt);
       }
     }
+    // Interiors: portal culling, shutter hours, threshold blend, then the scenarios.
+    this.scenario.tick(dt);
+    let indoor = 0;
+    let near = 0;
+    let insideCell: InteriorCell | null = null;
+    const now = new Date();
+    for (const c of this.interiors) {
+      c.update(dt, e.cam.camera, e.player.position, e.tod.clockMinutes, now.getDay());
+      indoor = Math.max(indoor, c.indoor);
+      near = Math.max(near, 1 - Math.min(1, c.doorPosition.distanceTo(e.cam.camera.position) / 12));
+      if (c.inside) insideCell = c;
+    }
+    if (running) this.kirana?.update(dt);
+    e.cam.indoor = indoor;
+    this.interiorAudio.update(indoor, near, e.settings.muted ? 0 : e.settings.masterVolume);
+    this.subtitles.enabled = e.settings.subtitles;
+    this.subtitles.update(dt);
+    // Eye adaptation, eased over ~0.8 s. Sky light reaches the room unoccluded, so by day the
+    // interior needs less exposure than the street (and the street flares briefly on the way out);
+    // at night the room's tubes are the brightest thing around.
+    const day = Math.max(0, Math.min(1, e.tod.state.sunAltitude * 4));
+    const want = 1 - indoor * (0.28 * day - 0.12 * (1 - day));
+    this.adapt += (want - this.adapt) * Math.min(1, dt / 0.8);
+    e.sky.adaptation = this.adapt;
+    this.minimap.floorPlan = insideCell ? this.floorPlanOf(insideCell) : null;
+
     // Stats/death/arrest run even while the screen card is up.
     this.stats.update(dt);
     input.enabled = !this.phone.open && this.stats.downTime <= 0 && !e.store.get().paused;
@@ -318,14 +444,19 @@ export class GameplayLayer {
       .sort((a, b) => a.d - b.d)
       .slice(0, 6);
     for (const { s } of nearShops)
-      blips.push({ x: s.pos.x, z: s.pos.z, kind: s.restaurant ? 'restaurant' : 'shop' });
+      blips.push({ x: s.pos.x, z: s.pos.z, kind: s.kind === 'restaurant' ? 'restaurant' : 'shop' });
     const tgt = this.missions.target;
     if (tgt) blips.push({ x: tgt.x, z: tgt.z, kind: 'mission' });
     else
       for (const sp of this.missions.startPoints) blips.push({ x: sp.pos.x, z: sp.pos.z, kind: 'mission' });
     blips.push({ x: e.colaba.gateway.x, z: e.colaba.gateway.z, kind: 'landmark', label: '⛩' });
     this.minimap.update(dt, me, e.player.yaw, e.cam.yaw, blips);
-    this.status.update(dt, e.player.aiming, this.wanted.bustProgress, e.player.stamina);
+    this.status.update(
+      dt,
+      e.player.aiming || !!this.kirana?.browsing,
+      this.wanted.bustProgress,
+      e.player.stamina,
+    );
 
     this.saveTimer -= dt;
     if (this.saveTimer <= 0) {

@@ -9,6 +9,8 @@ import { POSE_JOINTS, POSE_LEN, type Pose } from './poses';
  * Root = feet, facing +Z. Hips joint sits HIP_HEIGHT above the root.
  */
 export const HIP_HEIGHT = 0.92;
+/** Arm segment lengths: shoulder→elbow and elbow→palm centre. */
+export const ARM = { upper: 0.29, lower: 0.27 } as const;
 
 export interface Outfit {
   skin: number;
@@ -61,6 +63,9 @@ export class HumanoidRig {
   /** Inner group that receives body offset/pitch/roll so the root can follow physics. */
   private readonly body = new THREE.Group();
 
+  /** Hand anchors (centre of the palm) for attaching props and IK targets (SCENARIOS.md A4). */
+  readonly handL = new THREE.Object3D();
+  readonly handR = new THREE.Object3D();
   /** Proxy part nodes (instanced mode): geometry key + colour per node. */
   readonly proxies: Array<{ node: THREE.Object3D; geo: RigGeoKey; color: number }> = [];
 
@@ -152,6 +157,12 @@ export class HumanoidRig {
     }
 
     this.joints = { hips, spine, neck, head, shoulderL, elbowL, shoulderR, elbowR, hipL, kneeL, hipR, kneeR };
+    this.handL.name = 'handL';
+    this.handR.name = 'handR';
+    this.handL.position.set(0, -ARM.lower, 0);
+    this.handR.position.set(0, -ARM.lower, 0);
+    elbowL.add(this.handL);
+    elbowR.add(this.handR);
   }
 
   applyPose(p: Pose): void {

@@ -1,0 +1,296 @@
+{
+  "id": "laxmi-general",
+  "title": "Laxmi General Stores",
+  "dev": "लक्ष्मी जनरल स्टोअर्स",
+  "kind": "kirana",
+  "hours": {
+    "open": "08:00",
+    "close": "22:30",
+    "closedDays": []
+  },
+  "notes": "Room frame: origin at the doorway centre on the floor, +Z toward the street, -Z into the shop, +X to the right when walking in. Sizes in metres.",
+  "materials": {
+    "floor": "#b9ab94",
+    "walls": "#a8cfc0",
+    "dado": "#5f8f80",
+    "ceiling": "#ece6da"
+  },
+  "drawCallBudget": 150,
+  "props": [
+    {
+      "type": "counter",
+      "x": 0.9,
+      "z": -3.0,
+      "w": 0.6,
+      "d": 3.2,
+      "h": 0.95
+    },
+    {
+      "type": "counterReturn",
+      "x": 1.5,
+      "z": -4.75,
+      "w": 1.2,
+      "d": 0.5,
+      "h": 0.95
+    },
+    {
+      "type": "galla",
+      "x": 1.2,
+      "z": -2.6,
+      "y": 0.78
+    },
+    {
+      "type": "rack",
+      "x": -1.88,
+      "z": -3.3,
+      "w": 0.42,
+      "d": 4.4,
+      "levels": 6,
+      "facing": 1
+    },
+    {
+      "type": "rack",
+      "x": -0.55,
+      "z": -5.78,
+      "w": 2.3,
+      "d": 0.42,
+      "levels": 6,
+      "facing": 2
+    },
+    {
+      "type": "woodRack",
+      "x": 1.92,
+      "z": -3.0,
+      "w": 0.34,
+      "d": 3.0,
+      "levels": 5,
+      "facing": 3
+    },
+    {
+      "type": "fridge",
+      "x": -1.7,
+      "z": -0.62,
+      "facing": 1
+    },
+    {
+      "type": "sack",
+      "x": 0.3,
+      "z": -4.2,
+      "color": "#e8dcc0",
+      "label": "rice"
+    },
+    {
+      "type": "sack",
+      "x": 0.38,
+      "z": -4.72,
+      "color": "#e3b04b",
+      "label": "dal"
+    },
+    {
+      "type": "sack",
+      "x": -0.15,
+      "z": -4.6,
+      "color": "#d9c39a",
+      "label": "atta"
+    },
+    {
+      "type": "altar",
+      "x": 2.0,
+      "z": -4.4,
+      "y": 1.75
+    },
+    {
+      "type": "fan",
+      "x": 0,
+      "z": -3.0
+    },
+    {
+      "type": "tube",
+      "x": -2.05,
+      "z": -3.0,
+      "y": 2.85,
+      "facing": 1
+    },
+    {
+      "type": "tube",
+      "x": 2.05,
+      "z": -2.2,
+      "y": 2.85,
+      "facing": 3
+    },
+    {
+      "type": "calendar",
+      "x": -1.6,
+      "z": -0.33,
+      "y": 1.75,
+      "facing": 2
+    },
+    {
+      "type": "stool",
+      "x": 1.62,
+      "z": -2.6
+    },
+    {
+      "type": "scale",
+      "x": 0.85,
+      "z": -3.9
+    },
+    {
+      "type": "phone",
+      "x": 1.0,
+      "z": -1.75
+    },
+    {
+      "type": "chips",
+      "x": -1.0,
+      "z": -0.55
+    },
+    {
+      "type": "priceBoard",
+      "x": -1.62,
+      "z": -5.95,
+      "y": 2.65,
+      "facing": 0
+    }
+  ],
+  "slots": {
+    "shopkeeper": {
+      "x": 1.62,
+      "z": -2.6,
+      "yaw": -1.5708
+    },
+    "customerQueue": [
+      {
+        "x": 0.3,
+        "z": -2.6
+      },
+      {
+        "x": -0.2,
+        "z": -1.6
+      }
+    ],
+    "browse": [
+      {
+        "x": -1.3,
+        "z": -2.2
+      },
+      {
+        "x": -1.3,
+        "z": -4.2
+      },
+      {
+        "x": -0.6,
+        "z": -5.1
+      }
+    ]
+  },
+  "interaction": {
+    "counterFront": {
+      "x": 0.36,
+      "z": -2.6
+    },
+    "counterTop": {
+      "x0": 0.68,
+      "x1": 1.12,
+      "z0": -2.05,
+      "z1": -3.25,
+      "cols": 4,
+      "rows": 3,
+      "y": 0.95
+    },
+    "drawerTravel": 0.28
+  },
+  "stock": [
+    {
+      "id": "gluco",
+      "name": "Gluco Biscuits",
+      "dev": "ग्लुको बिस्किट",
+      "price": 10,
+      "heal": 3,
+      "mesh": "packet",
+      "color": "#f2c230",
+      "x": -1.72,
+      "z": -2.0,
+      "level": 3
+    },
+    {
+      "id": "chips",
+      "name": "Masala Chips",
+      "dev": "मसाला चिप्स",
+      "price": 20,
+      "heal": 3,
+      "mesh": "pillow",
+      "color": "#e5482f",
+      "x": -1.72,
+      "z": -2.9,
+      "level": 3
+    },
+    {
+      "id": "soap",
+      "name": "Neem Soap",
+      "dev": "नीम साबण",
+      "price": 35,
+      "mesh": "soap",
+      "color": "#3f9b4b",
+      "x": -1.72,
+      "z": -3.7,
+      "level": 2
+    },
+    {
+      "id": "agarbatti",
+      "name": "Chandan Agarbatti",
+      "dev": "चंदन अगरबत्ती",
+      "price": 25,
+      "mesh": "slim",
+      "color": "#7b3fa0",
+      "x": -1.72,
+      "z": -4.5,
+      "level": 3
+    },
+    {
+      "id": "kola",
+      "name": "Kola Fizz (cold)",
+      "dev": "कोला फिझ",
+      "price": 40,
+      "heal": 10,
+      "mesh": "bottle",
+      "color": "#5a1d12",
+      "x": -1.7,
+      "z": -0.62,
+      "level": -1
+    },
+    {
+      "id": "oil",
+      "name": "Groundnut Oil 1L",
+      "dev": "शेंगदाणा तेल",
+      "price": 186,
+      "mesh": "tin",
+      "color": "#e8b923",
+      "x": -0.9,
+      "z": -5.62,
+      "level": 3
+    },
+    {
+      "id": "rice",
+      "name": "Kolam Rice 1 kg",
+      "dev": "कोलम तांदूळ",
+      "price": 68,
+      "mesh": "bag",
+      "color": "#f5f0e1",
+      "x": -0.1,
+      "z": -5.62,
+      "level": 2
+    },
+    {
+      "id": "matches",
+      "name": "Matchbox (10)",
+      "dev": "काडेपेटी",
+      "price": 10,
+      "mesh": "matchbox",
+      "color": "#c62828",
+      "x": -1.35,
+      "z": -5.62,
+      "level": 2
+    }
+  ]
+}

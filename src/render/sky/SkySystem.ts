@@ -52,6 +52,8 @@ export class SkySystem {
   phase: DayPhase = 'day';
   /** Exposure bias from the dev panel (multiplies the grade exposure). */
   exposureBias = 1;
+  /** Eye adaptation multiplier, eased by the gameplay layer (interiors ask for more exposure). */
+  adaptation = 1;
   weatherCloud = 0.2;
   weatherRain = 0;
   weatherHaze = 0;
@@ -325,7 +327,7 @@ export class SkySystem {
     );
     this.uMoonBright.value = 0.4 + 0.6 * tod.state.moonFraction;
 
-    this.renderer.toneMappingExposure = g.exposure * this.exposureBias;
+    this.renderer.toneMappingExposure = g.exposure * this.exposureBias * this.adaptation;
     post.setGrade(g);
 
     lightUniforms.sunDir.value.copy(sunDir);

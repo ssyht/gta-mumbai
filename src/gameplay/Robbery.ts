@@ -8,7 +8,9 @@ import type { Targetable } from './Combat';
 export interface ShopFront {
   pos: THREE.Vector3;
   name: string;
-  restaurant: boolean;
+  kind: 'restaurant' | 'shop' | 'stall';
+  /** Walk-in interiors run their own scenarios; the old hold-E robbery only applies with a gun out. */
+  interior?: string;
 }
 
 /**
@@ -25,6 +27,8 @@ export class Robbery {
   private current: ShopFront | null = null;
   private readonly cooldown = new Map<ShopFront, number>();
   private lastHint: string | null = null;
+  /** Shops this system leaves alone right now (walk-in interiors without a gun out). */
+  skip: (s: ShopFront) => boolean = () => false;
 
   constructor(
     private readonly shops: ShopFront[],
@@ -65,6 +69,7 @@ export class Robbery {
     let near: ShopFront | null = null;
     let bd = 2.4;
     for (const s of this.shops) {
+      if (this.skip(s)) continue;
       const d = Math.hypot(s.pos.x - p.x, s.pos.z - p.z);
       if (d < bd && Math.abs(s.pos.y - p.y) < 1.5) {
         bd = d;
@@ -95,7 +100,8 @@ export class Robbery {
       this.hint(`Robbing ${near.name}… ${Math.round((this.progress / HOLD) * 100)}%`);
       if (this.progress >= HOLD) {
         const cash = Math.round(
-          (near.restaurant ? 4000 : 1500) + Math.random() * (near.restaurant ? 5000 : 3000),
+          (near.kind === 'restaurant' ? 4000 : near.kind === 'stall' ? 300 : 1500) +
+            Math.random() * (near.kind === 'restaurant' ? 5000 : near.kind === 'stall' ? 1500 : 3000),
         );
         this.stats.earn(cash, `Robbed ${near.name}`);
         this.bus.emit('ui:toast', { text: `₹${cash.toLocaleString('en-IN')} from ${near.name}. Run!` });
@@ -105,7 +111,7 @@ export class Robbery {
       }
     } else {
       if (this.progress > 0) this.progress = Math.max(0, this.progress - dt * 2);
-      this.hint(`E (hold)  Rob ${near.name}${near.restaurant ? ' · restaurant' : ''}`);
+      this.hint(`E (hold)  Rob ${near.name}${near.kind === 'shop' ? '' : ` · ${near.kind}`}`);
     }
   }
 }

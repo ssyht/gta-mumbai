@@ -1,0 +1,80 @@
+{
+  "speakers": {
+    "shopkeeper": { "name": "Mr. Shah", "color": "#ffcf1a" },
+    "player": { "name": "Raju", "color": "#7fd3ff" }
+  },
+  "lines": {
+    "greeting": [
+      ["Aao saab, bolo kya chahiye?", "Come in, sir, what do you need?"],
+      ["Haan bhai, bolo, kya doon?", "Yes brother, tell me, what can I get you?"],
+      ["Aaiye aaiye, sab milega yahan.", "Come in, come in, you'll find everything here."],
+      ["Namaste! Kya lena hai aaj?", "Namaste! What are you after today?"],
+      ["Bolo boss, jaldi bolo, aaj bheed hai.", "Go on boss, quickly, it's busy today."],
+      ["Arre aao, andar aao, dhoop hai bahar.", "Come in, come inside, it's sunny out there."],
+      ["Haan ji, kya chahiye? Sab fresh hai.", "Yes, what do you need? It's all fresh."],
+      ["Aao bhai, dekh lo aaram se.", "Come on in brother, take your time looking."],
+      ["Bolo saab, chai-paani, biscuit, sab hai.", "Tell me sir, tea, snacks, biscuits, all here."],
+      ["Kya chahiye? Naya maal aaya hai.", "What do you need? New stock just came in."],
+      ["Aao aao, pehli baar aaye ho kya?", "Come in, first time here?"],
+      ["Haan bolo, dekho kya pasand hai.", "Yes, go on, see what you like."],
+      [
+        "Aao saab, garam hai na aaj? Thanda bhi hai.",
+        "Come in sir, hot today, isn't it? I've got cold drinks too."
+      ],
+      ["Bolo, kya de doon? Udhaar nahi chalega, haan!", "Tell me, what'll it be? No credit, mind you!"],
+      ["Aaiye, Laxmi General mein swagat hai.", "Welcome to Laxmi General."]
+    ],
+    "eveningGreeting": [
+      ["Aao saab, ek minute, diya-batti kar loon.", "Come in sir, one minute, let me light the lamp."],
+      ["Shaam ho gayi… aao bhai, bolo.", "Evening already… come in brother, tell me."]
+    ],
+    "phoneWait": [
+      ["Ek minute… haan haan, bhej do kal subah.", "One minute… yes yes, send it tomorrow morning."],
+      ["Ruko ek minute… haan bol, maal kab aayega?", "Wait a minute… yes go on, when's the stock coming?"]
+    ],
+    "total": [
+      ["Kul milake {total}.", "That's {total} altogether."],
+      ["Ho gaya {total}, saab.", "Comes to {total}, sir."],
+      ["{total} hua, bhai.", "That's {total}, brother."]
+    ],
+    "haggleAccept": [
+      ["Chalo theek hai, aapke liye.", "Fine, okay, just for you."],
+      ["Achha chalo, rakh lo. Agli baar poora dena.", "Alright, keep it. Pay full next time."]
+    ],
+    "haggleCounter": [
+      [
+        "Itne mein toh mera bhi nahi aata, bhai. {price} de do.",
+        "Even I can't buy it for that, brother. Make it {price}."
+      ],
+      ["Na na… {price} final, isse kam nahi.", "No no… {price} final, not less."]
+    ],
+    "haggleRefuse": [
+      ["Fixed rate hai, saab. {price}.", "It's a fixed rate, sir. {price}."],
+      ["Mazaak kar rahe ho kya? {price}, bas.", "Are you joking? {price}, that's it."]
+    ],
+    "annoyed": [
+      ["Lena hai toh lo, warna time waste mat karo.", "Buy it or don't, but don't waste my time."],
+      ["Haan haan, jaldi karo.", "Yes yes, hurry up."]
+    ],
+    "counterfeit": [
+      ["Paanch sau ka? Ruko, dekh loon…", "A five hundred? Wait, let me check…"],
+      ["Aajkal nakli bahut chal raha hai.", "Lots of fakes going round these days."]
+    ],
+    "change": [
+      ["Yeh lo, {change} wapas.", "Here, {change} back."],
+      ["Chhutta {change}, gin lo.", "{change} change, count it."]
+    ],
+    "anythingElse": [
+      ["Aur kuch?", "Anything else?"],
+      ["Aur kuch chahiye, saab?", "Need anything else, sir?"],
+      ["Bas itna hi?", "Just this?"],
+      ["Aur kuch? Doodh, bread?", "Anything else? Milk, bread?"]
+    ],
+    "bye": [
+      ["Phir aana, saab.", "Come again, sir."],
+      ["Chalo, dhyaan rakhna.", "Okay, take care."]
+    ],
+    "closed": [["Dukaan band hai. Kal aana.", "Shop's closed. Come tomorrow."]],
+    "armedNotice": [["Arre… bhai, yeh kya hai? Ruko!", "Hey… brother, what's that? Wait!"]]
+  }
+}

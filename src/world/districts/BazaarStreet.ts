@@ -4,7 +4,12 @@ import type { PhysicsWorld } from '../../physics/PhysicsWorld';
 import { lightUniforms } from '../../render/lightUniforms';
 import { asphaltTexture, kerbTexture, mulberry32, paverTexture } from '../../render/materials/textures';
 import { posterTexture, SignAtlas, type SignSpec } from '../../render/materials/streetTextures';
-import { StreetBuildings, type FacadeStyle } from '../buildings/StreetBuildings';
+import {
+  StreetBuildings,
+  type FacadeStyle,
+  type InteriorSlot,
+  type ShopKind,
+} from '../buildings/StreetBuildings';
 import { buildStreetDressing } from '../props/StreetProps';
 import type { StreetLights } from '../props/StreetLights';
 import { Vegetation } from '../props/Vegetation';
@@ -39,7 +44,8 @@ export interface BazaarStreet {
   parked: ParkedSpot[];
   crowdArea: CrowdArea;
   idleSpots: THREE.Vector3[];
-  shopFronts: Array<{ pos: THREE.Vector3; name: string; restaurant: boolean }>;
+  shopFronts: Array<{ pos: THREE.Vector3; name: string; kind: ShopKind; interior?: string }>;
+  interiors: InteriorSlot[];
 }
 
 const SHOPS: SignSpec[] = [
@@ -174,6 +180,25 @@ export function buildBazaarStreet(
         trim: pick(TRIMS),
         tower: style === 'colonial' && rnd() < 0.7,
         shops,
+        // The first north-side building near the spawn hosts the walk-in Kirana store (SCENARIOS.md C1).
+        ...(side === -1 && i === 0
+          ? {
+              interior: {
+                bay: 1,
+                roomW: 4.2,
+                roomD: 6,
+                roomH: 3.3,
+                id: 'laxmi-general',
+                sign: {
+                  dev: 'लक्ष्मी जनरल स्टोअर्स',
+                  text: 'LAXMI GENERAL STORES',
+                  bg: '#f57f17',
+                  fg: '#2b1a00',
+                  accent: '#b71c1c',
+                },
+              },
+            }
+          : {}),
         ...(style === 'shophouse' && rnd() < 0.5 ? { upperSign: pick(UPPER) } : {}),
       });
       x += width;
@@ -380,5 +405,6 @@ export function buildBazaarStreet(
     },
     idleSpots,
     shopFronts: kit.dressing.shopFronts,
+    interiors: kit.dressing.interiors,
   };
 }

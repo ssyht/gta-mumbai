@@ -352,3 +352,80 @@ export function swim(p: Pose, phase: number, moving: boolean): Pose {
   body(p, 0.9, 1.25, Math.sin(phase) * 0.12 * a);
   return p;
 }
+
+/** Shopkeeper on a stool (~0.6 m), newspaper held up in both hands. */
+export function seatedRead(p: Pose, t: number): Pose {
+  p.fill(0);
+  set(p, 'hipL', -1.45, 0, 0.12);
+  set(p, 'hipR', -1.45, 0, -0.12);
+  set(p, 'kneeL', 1.5);
+  set(p, 'kneeR', 1.5);
+  set(p, 'spine', 0.06 + Math.sin(t * 1.4) * 0.01);
+  set(p, 'neck', 0.12);
+  set(p, 'head', 0.18 + Math.sin(t * 0.3) * 0.04, Math.sin(t * 0.21) * 0.15);
+  set(p, 'shoulderL', -0.85, 0, -0.18);
+  set(p, 'shoulderR', -0.85, 0, 0.18);
+  set(p, 'elbowL', -1.35);
+  set(p, 'elbowR', -1.35);
+  body(p, -0.3);
+  return p;
+}
+
+/** Standing behind a counter, weight shifting, hands resting near the counter top. */
+export function standCounter(p: Pose, t: number): Pose {
+  p.fill(0);
+  const sway = Math.sin(t * 0.8) * 0.02;
+  set(p, 'spine', 0.08 + Math.sin(t * 1.6) * 0.01);
+  set(p, 'neck', 0.04);
+  set(p, 'shoulderL', -0.55, 0, 0.05);
+  set(p, 'shoulderR', -0.55, 0, -0.05);
+  set(p, 'elbowL', -0.9);
+  set(p, 'elbowR', -0.9);
+  set(p, 'hipL', 0.02, 0, 0.04 + sway);
+  set(p, 'hipR', 0.02, 0, -0.04 + sway);
+  body(p, -0.005, 0, sway);
+  return p;
+}
+
+/** Phone held to the right ear, left index finger up ("ek minute"). */
+export function phoneCall(p: Pose, t: number, fingerUp: boolean): Pose {
+  seatedRead(p, t);
+  set(p, 'shoulderR', -0.5, 0, 0.9);
+  set(p, 'elbowR', -2.3);
+  set(p, 'head', 0.05, -0.2, -0.15);
+  if (fingerUp) {
+    set(p, 'shoulderL', -1.3, 0, 0.1);
+    set(p, 'elbowL', -1.1);
+  } else {
+    set(p, 'shoulderL', -0.2, 0, 0.1);
+    set(p, 'elbowL', -0.6);
+  }
+  return p;
+}
+
+/** Hip bump to shut a drawer: the pelvis swings toward the character's left (+X) and back. */
+export function hipBump(p: Pose, t: number, t01: number): Pose {
+  standCounter(p, t);
+  const k = Math.sin(Math.min(1, t01) * Math.PI);
+  set(p, 'hips', 0, -0.35 * k, 0.12 * k);
+  set(p, 'spine', 0.08, 0.25 * k, -0.18 * k);
+  set(p, 'hipL', -0.05, 0, 0.2 * k);
+  body(p, -0.02 * k, 0, 0.06 * k);
+  return p;
+}
+
+/** Startled, hands up to shoulder height, palms out (used until the SCENARIOS C2 pack lands). */
+export function handsUp(p: Pose, t: number, tremor: number): Pose {
+  p.fill(0);
+  const sh = Math.sin(t * 56) * tremor;
+  set(p, 'spine', -0.08);
+  set(p, 'neck', 0.1);
+  set(p, 'shoulderL', -0.35 + sh, 0, 1.55);
+  set(p, 'shoulderR', -0.35 - sh, 0, -1.55);
+  set(p, 'elbowL', -1.6 + sh, 0, 0);
+  set(p, 'elbowR', -1.6 - sh, 0, 0);
+  set(p, 'kneeL', 0.15);
+  set(p, 'kneeR', 0.15);
+  body(p, -0.04);
+  return p;
+}

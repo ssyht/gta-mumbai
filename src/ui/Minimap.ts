@@ -51,7 +51,13 @@ export class Minimap {
     this.el.style.display = v ? 'block' : 'none';
   }
 
+  /** Indoor floor plan (world-space rectangles) and zoom; null outdoors (SCENARIOS.md A1). */
+  floorPlan: { rects: Array<{ corners: Array<[number, number]>; color: string }>; label: string } | null =
+    null;
+  private zoom = 1;
+
   update(dt: number, player: THREE.Vector3, playerYaw: number, camYaw: number, blips: Blip[]): void {
+    this.zoom += ((this.floorPlan ? 9 : 1) - this.zoom) * Math.min(1, dt * 4);
     this.flash += dt;
     this.timer -= dt;
     if (this.timer > 0) return;
@@ -59,7 +65,7 @@ export class Minimap {
     const c = this.ctx;
     const S = this.size;
     const half = S / 2;
-    const scale = half / RANGE;
+    const scale = (half / RANGE) * this.zoom;
     // Screen axes from the camera: right = (-cos, sin), forward = (sin, cos).
     const rx = -Math.cos(camYaw);
     const rz = Math.sin(camYaw);
@@ -97,6 +103,23 @@ export class Minimap {
           c.stroke();
         }
       }
+    }
+    if (this.floorPlan) {
+      for (const r of this.floorPlan.rects) {
+        c.fillStyle = r.color;
+        c.beginPath();
+        r.corners.forEach(([x, z], i) => {
+          const [sx, sy] = toScreen(x, z);
+          if (i === 0) c.moveTo(sx, sy);
+          else c.lineTo(sx, sy);
+        });
+        c.closePath();
+        c.fill();
+      }
+      c.fillStyle = 'rgba(255,255,255,0.8)';
+      c.font = '700 11px Mukta, sans-serif';
+      c.textAlign = 'center';
+      c.fillText(this.floorPlan.label, half, 16);
     }
     // Blips (clamped to the edge when off-map).
     for (const b of blips) {

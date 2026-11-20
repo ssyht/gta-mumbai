@@ -45,6 +45,8 @@ export class PlayerCamera {
   private fpYaw = 0;
   private fpPitch = 0;
   private baseFov = 65;
+  /** 0..1 indoor blend from the interior system (shorter arm, narrower FOV). */
+  indoor = 0;
   private readonly smoothTarget = new THREE.Vector3();
   private initialised = false;
 
@@ -101,6 +103,10 @@ export class PlayerCamera {
         dist = cam.distance * (this.distance / 4.2) + speed * 0.05;
         fov = cam.fov + Math.min(14, speed * 0.32);
       } else {
+        if (this.indoor > 0) {
+          dist = THREE.MathUtils.lerp(dist, Math.min(dist, 2.2), this.indoor);
+          fov -= 5 * this.indoor;
+        }
         if (ctx.aiming) {
           dist = 1.9;
           fov = 50;
@@ -139,7 +145,13 @@ export class PlayerCamera {
           : this.currentDist + (allowed - this.currentDist) * Math.min(1, dt * 3);
       _desired.copy(this.smoothTarget).addScaledVector(_dir, this.currentDist);
       // Never dip under the ground.
-      const gy = this.physics.groundHeight(_desired.x, _desired.z, _desired.y + 2, -100);
+      // Probe from just above the camera: starting 2 m up would begin inside ceilings (interiors) and lift it onto the roof.
+      const gy = this.physics.groundHeight(
+        _desired.x,
+        _desired.z,
+        _desired.y + (this.indoor > 0 ? 0.4 : 2),
+        -100,
+      );
       if (_desired.y < gy + 0.25) _desired.y = gy + 0.25;
       this.camera.position.copy(_desired);
       this.camera.lookAt(this.smoothTarget);

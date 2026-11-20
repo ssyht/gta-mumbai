@@ -88,6 +88,7 @@ export class PauseMenu {
           <label class="row"><input type="checkbox" id="m-invert" ${s.invertY ? 'checked' : ''}/> Invert Y</label>
           <label>Volume <input type="range" id="m-vol" min="0" max="1" step="0.05" value="${s.masterVolume}"/></label>
           <label class="row"><input type="checkbox" id="m-mute" ${s.muted ? 'checked' : ''}/> Mute all audio (M)</label>
+          <label class="row"><input type="checkbox" id="m-subs" ${s.subtitles ? 'checked' : ''}/> Subtitles (Hindi + English)</label>
           <ul class="keys">${CONTROLS.map(([k, d]) => `<li><kbd>${k}</kbd>${d}</li>`).join('')}</ul>
         </section>
       </div>`;
@@ -139,6 +140,9 @@ export class PauseMenu {
     );
     $<HTMLInputElement>('m-mute').addEventListener('change', (e) =>
       change({ muted: (e.target as HTMLInputElement).checked }),
+    );
+    $<HTMLInputElement>('m-subs').addEventListener('change', (e) =>
+      change({ subtitles: (e.target as HTMLInputElement).checked }),
     );
     this.reloadNote = $('m-reload');
   }

@@ -53,6 +53,29 @@ export interface StreetBuildingSpec {
   tower?: boolean;
   shops: SignSpec[];
   upperSign?: SignSpec;
+  /** One ground-floor bay becomes a real walk-in room (SCENARIOS.md A1). */
+  interior?: { bay: number; roomW: number; roomD: number; roomH: number; id: string; sign: SignSpec };
+}
+
+export type ShopKind = 'restaurant' | 'shop' | 'stall';
+
+/** What a business actually is (a paan shop is a street stall, not a restaurant). */
+export function shopKind(name: string): ShopKind {
+  if (/PAAN|CHAI|VADA PAV/i.test(name)) return 'stall';
+  if (/KHANA|CAFE|RESTAURANT|BHOJAN|DHABA/i.test(name)) return 'restaurant';
+  return 'shop';
+}
+
+/** Placement of a walk-in interior: room frame (origin = doorway centre at floor level, +Z = street). */
+export interface InteriorSlot {
+  id: string;
+  name: string;
+  frame: THREE.Matrix4;
+  doorWidth: number;
+  roomW: number;
+  roomD: number;
+  roomH: number;
+  floorY: number;
 }
 
 export interface StreetDressing {
@@ -70,7 +93,8 @@ export interface StreetDressing {
   gullyWalls: Array<{ center: THREE.Vector3; normal: THREE.Vector3; width: number; height: number }>;
   antennas: number[];
   /** Shop fronts that can be robbed (fictional businesses). */
-  shopFronts: Array<{ pos: THREE.Vector3; name: string; restaurant: boolean }>;
+  shopFronts: Array<{ pos: THREE.Vector3; name: string; kind: ShopKind; interior?: string }>;
+  interiors: InteriorSlot[];
 }
 
 const GROUND_H = 4.0;
@@ -260,6 +284,7 @@ export class StreetBuildings {
     gullyWalls: [],
     antennas: [],
     shopFronts: [],
+    interiors: [],
   };
   private readonly rnd = mulberry32(2019);
   private band = 0;
@@ -329,7 +354,49 @@ export class StreetBuildings {
       plaster.clone().multiplyScalar(0.8),
     );
     P.trim.box(m, nm, W / 2, bodyTop + 0.05, -D / 2, W, 0.1, D, trim.clone().multiplyScalar(0.7));
-    this.physics.addStaticBox(toWorld(W / 2, bodyTop / 2, -D / 2), { x: W / 2, y: bodyTop / 2, z: D / 2 });
+    const box = (ax: number, ay: number, az: number, bx: number, by: number, bz: number): void => {
+      // Local AABB (a <= b in x/y, az >= bz since the building runs toward -Z).
+      if (bx - ax < 0.01 || by - ay < 0.01 || az - bz < 0.01) return;
+      this.physics.addStaticBox(toWorld((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2), {
+        x: (bx - ax) / 2,
+        y: (by - ay) / 2,
+        z: (az - bz) / 2,
+      });
+    };
+    const inter = s.interior;
+    let room: { rx0: number; rx1: number; dx0: number; dx1: number } | null = null;
+    if (inter) {
+      const bw = W / bays;
+      const dx0 = inter.bay * bw + 0.17;
+      const dx1 = (inter.bay + 1) * bw - 0.17;
+      const xc = (dx0 + dx1) / 2;
+      const rx0 = Math.max(0.3, xc - inter.roomW / 2);
+      const rx1 = Math.min(W - 0.3, xc + inter.roomW / 2);
+      room = { rx0, rx1, dx0, dx1 };
+      const FY = 0.18;
+      const RH = FY + inter.roomH;
+      // Hollow shell: everything except the room volume stays solid.
+      box(0, 0, 0, rx0, bodyTop, -D);
+      box(rx1, 0, 0, W, bodyTop, -D);
+      box(rx0, 0, -inter.roomD, rx1, bodyTop, -D);
+      box(rx0, RH, 0, rx1, bodyTop, -inter.roomD);
+      box(rx0, 0, 0, dx0, RH, -0.3);
+      box(dx1, 0, 0, rx1, RH, -0.3);
+      box(rx0, 0, 0, rx1, FY, -inter.roomD);
+      const frame = m.clone().multiply(new THREE.Matrix4().makeTranslation(xc, FY, 0));
+      this.dressing.interiors.push({
+        id: inter.id,
+        name: inter.sign.text,
+        frame,
+        doorWidth: dx1 - dx0,
+        roomW: rx1 - rx0,
+        roomD: inter.roomD,
+        roomH: inter.roomH,
+        floorY: FY,
+      });
+    } else {
+      this.physics.addStaticBox(toWorld(W / 2, bodyTop / 2, -D / 2), { x: W / 2, y: bodyTop / 2, z: D / 2 });
+    }
     for (const xSide of [0, W]) {
       this.dressing.gullyWalls.push({
         center: toWorld(xSide, Math.min(bodyTop, 8) / 2 + 0.3, -Math.min(D, 6) / 2 - 0.5),
@@ -348,80 +415,87 @@ export class StreetBuildings {
       const x1 = (i + 1) * bayW - 0.17;
       const w = x1 - x0;
       const xc = (x0 + x1) / 2;
-      const shop = s.shops[i % Math.max(1, s.shops.length)];
-      const closed = rnd() < 0.18;
-      // Interior recess.
-      const warm = new THREE.Color().setHSL(0.08 + rnd() * 0.05, 0.5, 0.18 + rnd() * 0.12);
-      P.dark.quad(
-        m,
-        nm,
-        [
-          [x0, 0, -1.2],
-          [x1, 0, -1.2],
-          [x1, 3.3, -1.2],
-          [x0, 3.3, -1.2],
-        ],
-        [0, 0, 1],
-        [0, 0, 1, 1],
-        warm,
-      );
-      P.dark.quad(
-        m,
-        nm,
-        [
-          [x0, 3.3, 0],
-          [x1, 3.3, 0],
-          [x1, 3.3, -1.2],
-          [x0, 3.3, -1.2],
-        ],
-        [0, -1, 0],
-        [0, 0, 1, 1],
-        warm.clone().multiplyScalar(0.6),
-      );
-      P.dark.quad(
-        m,
-        nm,
-        [
-          [x0, 0, -1.2],
-          [x0, 0, 0],
-          [x0, 3.3, 0],
-          [x0, 3.3, -1.2],
-        ],
-        [1, 0, 0],
-        [0, 0, 1, 1],
-        warm.clone().multiplyScalar(0.7),
-      );
-      P.dark.quad(
-        m,
-        nm,
-        [
-          [x1, 0, 0],
-          [x1, 0, -1.2],
-          [x1, 3.3, -1.2],
-          [x1, 3.3, 0],
-        ],
-        [-1, 0, 0],
-        [0, 0, 1, 1],
-        warm.clone().multiplyScalar(0.7),
-      );
-      // Rolling shutter: rolled up (a drum at the top) or pulled down.
-      const shCol = new THREE.Color(SHUTTERS[Math.floor(rnd() * SHUTTERS.length)]!);
-      const shBottom = closed ? 0 : 2.75 + rnd() * 0.35;
-      P.shutter.quad(
-        m,
-        nm,
-        [
-          [x0, shBottom, 0.02],
-          [x1, shBottom, 0.02],
-          [x1, 3.32, 0.02],
-          [x0, 3.32, 0.02],
-        ],
-        [0, 0, 1],
-        [0, shBottom / 2, w / 2, 3.32 / 2],
-        shCol,
-      );
-      P.metal.box(m, nm, xc, 3.36, 0.1, w, 0.16, 0.2, metal);
-      if (!closed) {
+      const isInterior = !!inter && inter.bay === i && !!room;
+      // Neighbouring bays that overlap the walk-in room stay shuttered with no recess.
+      const overlapsRoom = !isInterior && !!room && x1 > room.rx0 && x0 < room.rx1;
+      const shop = isInterior ? inter!.sign : s.shops[i % Math.max(1, s.shops.length)];
+      const closed = overlapsRoom || (!isInterior && rnd() < 0.18);
+      if (!isInterior) {
+        if (!overlapsRoom) {
+          // Interior recess.
+          const warm = new THREE.Color().setHSL(0.08 + rnd() * 0.05, 0.5, 0.18 + rnd() * 0.12);
+          P.dark.quad(
+            m,
+            nm,
+            [
+              [x0, 0, -1.2],
+              [x1, 0, -1.2],
+              [x1, 3.3, -1.2],
+              [x0, 3.3, -1.2],
+            ],
+            [0, 0, 1],
+            [0, 0, 1, 1],
+            warm,
+          );
+          P.dark.quad(
+            m,
+            nm,
+            [
+              [x0, 3.3, 0],
+              [x1, 3.3, 0],
+              [x1, 3.3, -1.2],
+              [x0, 3.3, -1.2],
+            ],
+            [0, -1, 0],
+            [0, 0, 1, 1],
+            warm.clone().multiplyScalar(0.6),
+          );
+          P.dark.quad(
+            m,
+            nm,
+            [
+              [x0, 0, -1.2],
+              [x0, 0, 0],
+              [x0, 3.3, 0],
+              [x0, 3.3, -1.2],
+            ],
+            [1, 0, 0],
+            [0, 0, 1, 1],
+            warm.clone().multiplyScalar(0.7),
+          );
+          P.dark.quad(
+            m,
+            nm,
+            [
+              [x1, 0, 0],
+              [x1, 0, -1.2],
+              [x1, 3.3, -1.2],
+              [x1, 3.3, 0],
+            ],
+            [-1, 0, 0],
+            [0, 0, 1, 1],
+            warm.clone().multiplyScalar(0.7),
+          );
+        }
+        // Rolling shutter: rolled up (a drum at the top) or pulled down.
+        const shCol = new THREE.Color(SHUTTERS[Math.floor(rnd() * SHUTTERS.length)]!);
+        const shBottom = closed ? 0 : 2.75 + rnd() * 0.35;
+        P.shutter.quad(
+          m,
+          nm,
+          [
+            [x0, shBottom, 0.02],
+            [x1, shBottom, 0.02],
+            [x1, 3.32, 0.02],
+            [x0, 3.32, 0.02],
+          ],
+          [0, 0, 1],
+          [0, shBottom / 2, w / 2, 3.32 / 2],
+          shCol,
+        );
+        P.metal.box(m, nm, xc, 3.36, 0.1, w, 0.16, 0.2, metal);
+      }
+      if (!closed && !isInterior) {
         // Goods spilling onto the pavement.
         const n = 1 + Math.floor(rnd() * 3);
         for (let k = 0; k < n; k++) {
@@ -443,7 +517,8 @@ export class StreetBuildings {
         this.dressing.shopFronts.push({
           pos: toWorld(xc, 0.18, 0.9),
           name: shop.text,
-          restaurant: /CAFE|KHANA|SWEET|BAKERY|JUICE|CHAI|VADA|PAAN/i.test(shop.text),
+          kind: shopKind(shop.text),
+          ...(isInterior ? { interior: inter!.id } : {}),
         });
       }
       if (shop) {

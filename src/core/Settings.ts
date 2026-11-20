@@ -19,6 +19,8 @@ export interface SettingsData {
   masterVolume: number;
   /** Mute every game sound (M, or the pause menu). */
   muted: boolean;
+  /** Dialogue subtitles (Hindi + English). */
+  subtitles: boolean;
   showPerfHud: boolean;
 }
 
@@ -113,6 +115,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   invertY: false,
   masterVolume: 0.8,
   muted: false,
+  subtitles: true,
   showPerfHud: true,
 };
 
@@ -148,6 +151,7 @@ export function sanitizeSettings(raw: unknown): SettingsData {
     s.masterVolume = clamp(r.masterVolume, 0, 1);
   if (typeof r.showPerfHud === 'boolean') s.showPerfHud = r.showPerfHud;
   if (typeof r.muted === 'boolean') s.muted = r.muted;
+  if (typeof r.subtitles === 'boolean') s.subtitles = r.subtitles;
   return s;
 }
 
