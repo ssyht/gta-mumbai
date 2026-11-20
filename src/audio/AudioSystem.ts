@@ -12,14 +12,49 @@ interface HornVoice {
   stop(): void;
 }
 
-const HORNS: Record<HornId, { freqs: number[]; type: OscillatorType; filter: number; melody?: number[] }> = {
-  car: { freqs: [415, 520], type: 'square', filter: 2400 },
-  auto: { freqs: [640, 655], type: 'square', filter: 3200 },
-  scooter: { freqs: [560, 590], type: 'square', filter: 2800 },
-  bus: { freqs: [290, 365, 440], type: 'sawtooth', filter: 1600 },
-  // The melodic "Horn OK Please" multi-tone truck horn.
-  truck: { freqs: [330], type: 'sawtooth', filter: 1900, melody: [330, 392, 440, 523, 440, 392] },
+interface HornSpec {
+  freqs: number[];
+  type: OscillatorType;
+  filter: number;
+  melody?: number[];
+  /** Pitch wobble (Hz) for cheap, rattly horns. */
+  wobble?: number;
+}
+/** Several horn voices per vehicle class; each vehicle picks one by id so the street sounds varied. */
+const HORN_VARIANTS: Record<HornId, HornSpec[]> = {
+  car: [
+    { freqs: [415, 520], type: 'square', filter: 2400 }, // classic twin-tone
+    { freqs: [470, 590], type: 'square', filter: 3000 }, // brighter hatchback
+    { freqs: [350, 440], type: 'sawtooth', filter: 1800 }, // deep sedan
+    { freqs: [600], type: 'square', filter: 3500, wobble: 6 }, // tinny single beep
+  ],
+  auto: [
+    { freqs: [640, 655], type: 'square', filter: 3200 },
+    { freqs: [720], type: 'square', filter: 3800, wobble: 14 }, // buzzy electric horn
+    { freqs: [520, 530], type: 'triangle', filter: 2600 }, // bulb-horn "pom"
+  ],
+  scooter: [
+    { freqs: [560, 590], type: 'square', filter: 2800 },
+    { freqs: [880], type: 'square', filter: 4200, wobble: 10 }, // thin "meep"
+    { freqs: [500], type: 'triangle', filter: 2400 },
+  ],
+  bus: [
+    { freqs: [290, 365, 440], type: 'sawtooth', filter: 1600 }, // air horn chord
+    { freqs: [220, 277], type: 'sawtooth', filter: 1200 },
+  ],
+  // The melodic "Horn OK Please" multi-tone truck horns.
+  truck: [
+    { freqs: [330], type: 'sawtooth', filter: 1900, melody: [330, 392, 440, 523, 440, 392] },
+    { freqs: [294], type: 'sawtooth', filter: 1700, melody: [294, 370, 440, 370] },
+    { freqs: [196, 247], type: 'sawtooth', filter: 1100 }, // big pressure horn
+  ],
 };
+function hornFor(id: HornId, key: string): HornSpec {
+  const list = HORN_VARIANTS[id];
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return list[Math.abs(h) % list.length]!;
+}
 
 interface EngineVoice {
   osc: OscillatorNode;
@@ -62,6 +97,7 @@ export class AudioSystem {
       if (seatType === 'driver') this.startEngine(vehicleId);
     });
     bus.on('player:exitedVehicle', () => this.stopEngine());
+    bus.on('weapon:fired', ({ at }) => this.gunshot(at));
   }
 
   /** Must run from a user gesture (browser autoplay rules). */
@@ -105,7 +141,7 @@ export class AudioSystem {
   private hornOn(id: string): void {
     const v = this.vehicleById(id);
     if (!v || this.horns.has(id) || !this.started) return;
-    const spec = HORNS[v.profile.audio.horn];
+    const spec = hornFor(v.profile.audio.horn, v.id);
     const out = this.emitter(v).getOutput();
     const t0 = this.ctx.currentTime;
     const gain = this.ctx.createGain();
@@ -119,6 +155,16 @@ export class AudioSystem {
       const o = this.ctx.createOscillator();
       o.type = spec.type;
       o.frequency.value = f;
+      if (spec.wobble) {
+        // Rattly cheap horn: fast pitch wobble.
+        const lfo = this.ctx.createOscillator();
+        const depth = this.ctx.createGain();
+        lfo.frequency.value = 28;
+        depth.gain.value = spec.wobble;
+        lfo.connect(depth).connect(o.frequency);
+        lfo.start(t0);
+        o.addEventListener('ended', () => lfo.stop());
+      }
       o.connect(filter);
       o.start(t0);
       return o;
@@ -265,8 +311,8 @@ export class AudioSystem {
     const ang = Math.random() * Math.PI * 2;
     const r = 60 + Math.random() * 160;
     a.position.set(listenerPos.x + Math.cos(ang) * r, 2, listenerPos.z + Math.sin(ang) * r);
-    const ids = Object.keys(HORNS) as HornId[];
-    const spec = HORNS[ids[Math.floor(Math.random() * ids.length)]!];
+    const ids = Object.keys(HORN_VARIANTS) as HornId[];
+    const spec = hornFor(ids[Math.floor(Math.random() * ids.length)]!, String(Math.random()));
     const t = this.ctx.currentTime;
     const beeps = 1 + Math.floor(Math.random() * 3);
     for (let b = 0; b < beeps; b++) {
@@ -289,6 +335,124 @@ export class AudioSystem {
         o.stop(start + 0.2);
       }
     }
+  }
+
+  private shotAudio: THREE.PositionalAudio | null = null;
+  /** Sharp crack + low thump, positional. */
+  gunshot(at: { x: number; y: number; z: number }): void {
+    if (!this.started) return;
+    if (!this.shotAudio) {
+      this.shotAudio = new THREE.PositionalAudio(this.listener);
+      this.shotAudio.setRefDistance(12);
+      this.scene.add(this.shotAudio);
+    }
+    this.shotAudio.position.set(at.x, at.y, at.z);
+    this.shotAudio.updateMatrixWorld();
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noise;
+    const hp = this.ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 900;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.9, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    src.connect(hp).connect(g).connect(this.shotAudio.getOutput());
+    src.start(t);
+    src.stop(t + 0.3);
+    const o = this.ctx.createOscillator();
+    o.frequency.setValueAtTime(140, t);
+    o.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+    const og = this.ctx.createGain();
+    og.gain.setValueAtTime(0.6, t);
+    og.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    o.connect(og).connect(this.shotAudio.getOutput());
+    o.start(t);
+    o.stop(t + 0.2);
+  }
+
+  private siren: {
+    audio: THREE.PositionalAudio;
+    osc: OscillatorNode;
+    lfo: OscillatorNode;
+    gain: GainNode;
+  } | null = null;
+  /** Indian two-tone police siren following the nearest police car. */
+  updateSiren(at: THREE.Vector3 | null): void {
+    if (!this.started) return;
+    if (!this.siren && at) {
+      const audio = new THREE.PositionalAudio(this.listener);
+      audio.setRefDistance(15);
+      audio.setRolloffFactor(1.1);
+      this.scene.add(audio);
+      const osc = this.ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = 700;
+      const lfo = this.ctx.createOscillator();
+      lfo.type = 'square';
+      lfo.frequency.value = 1.6;
+      const depth = this.ctx.createGain();
+      depth.gain.value = 140;
+      lfo.connect(depth).connect(osc.frequency);
+      const flt = this.ctx.createBiquadFilter();
+      flt.type = 'lowpass';
+      flt.frequency.value = 2200;
+      const gain = this.ctx.createGain();
+      gain.gain.value = 0;
+      osc.connect(flt).connect(gain).connect(audio.getOutput());
+      osc.start();
+      lfo.start();
+      this.siren = { audio, osc, lfo, gain };
+    }
+    if (!this.siren) return;
+    this.siren.gain.gain.setTargetAtTime(at ? 0.12 : 0, this.ctx.currentTime, 0.3);
+    if (at) {
+      this.siren.audio.position.copy(at);
+      this.siren.audio.updateMatrixWorld();
+    }
+  }
+
+  private rainGain: GainNode | null = null;
+  /** Rain loop loudness 0..1 (weather). */
+  setRain(amount: number): void {
+    if (!this.started) return;
+    if (!this.rainGain) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.noise;
+      src.loop = true;
+      const hp = this.ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 1200;
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 7000;
+      this.rainGain = this.ctx.createGain();
+      this.rainGain.gain.value = 0;
+      src.connect(hp).connect(lp).connect(this.rainGain).connect(this.listener.getInput());
+      src.start();
+    }
+    this.rainGain.gain.setTargetAtTime(amount * 0.22, this.ctx.currentTime, 0.5);
+  }
+
+  thunder(): void {
+    if (!this.started) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noise;
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 180;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.9, t + 0.15);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 3.5);
+    src.connect(lp).connect(g).connect(this.listener.getInput());
+    src.start(t);
+    src.stop(t + 3.6);
+  }
+
+  get context(): AudioContext {
+    return this.ctx;
   }
 
   update(dt: number, listenerPos: THREE.Vector3, playerVehicle: Vehicle | null): void {
@@ -315,7 +479,7 @@ export class AudioSystem {
     this.distantTimer -= dt;
     if (this.distantTimer <= 0) {
       this.distantHonk(listenerPos);
-      this.distantTimer = (1.2 + Math.random() * 5) / Math.max(0.15, this.density);
+      this.distantTimer = (5 + Math.random() * 12) / Math.max(0.2, this.density);
     }
     if (this.seaAudio) this.seaAudio.position.z = listenerPos.z;
   }
