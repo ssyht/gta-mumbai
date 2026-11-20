@@ -376,6 +376,9 @@ export class GameplayLayer {
     }
     if (running) this.kirana?.update(dt);
     e.cam.indoor = indoor;
+    e.cam.room = insideCell
+      ? { floor: insideCell.slot.floorY, ceiling: insideCell.slot.floorY + insideCell.slot.roomH }
+      : null;
     this.interiorAudio.update(indoor, near, e.settings.muted ? 0 : e.settings.masterVolume);
     this.subtitles.enabled = e.settings.subtitles;
     this.subtitles.update(dt);

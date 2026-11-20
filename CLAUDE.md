@@ -261,6 +261,10 @@ Rules: systems talk through the EventBus. Gameplay state is in one store. No sys
 
 - (2026-11-20) **Physics tuned to the user's GAME_SPEC.md** where it doesn't conflict with this file (CLAUDE.md wins on clock, renderer and stack). Player: walk/jog/sprint 1.6/3.8/6.5 m/s, jump 5.2 m/s, gravity 20, 12/16 m/s² accel/decel, 45° slope, 0.4 m step, stamina (drain 12/s, regen 20/s after 1.5 s), fall damage 4–15 m, ragdoll above 6 m, swimming with drowning when stamina runs out. Vehicles: per-class gearbox/RPM, drag + downforce, handbrake rear grip ×0.4, wet grip ×0.75, health 1000 with smoke/fire/explosion, mesh dents, skid marks. Bail-out above 30 km/h; carjack only under 5 km/h.
 
+- (2026-11-20) **SCENARIOS.md adopted** (repo root) as the spec for interiors and scenario depth; it wins over older code where they disagree. No child NPCs anywhere (overrides "kids playing cricket" in §3; street cricket is adults only). Progress is tracked in `PROGRESS.md`, the audit in `AUDIT.md`, and screenshot review in `REVIEW.md`.
+- (2026-11-20) **Walk-in interiors (Pack 1).** A street building can host an `InteriorCell` (data in `src/data/interiors/*.json`) inside its footprint: the building collider becomes a hollow shell, neighbouring bays that overlap the room stay shuttered, the room renders only when you're inside or the doorway is in view within 25 m, and it costs ~132 draw calls. Indoors the camera stays between floor and ceiling (the ground probe started inside ceiling slabs and lifted the camera onto the roof), the street audio runs through the listener filter while room sounds bypass it, and exposure *drops* indoors by day because sky light reaches the room unoccluded (no real GI yet).
+- (2026-11-20) **Hands touch what they hold.** Two-bone arm IK (`actors/rig/ArmIK.ts`) with reach-aware spine lean; scenario coroutines run *after* the pose and IK layer each frame, since the player controller resets arms to FK first. C1 tests require held objects within 5 cm of the palm and a 0 cm paired handoff.
+
 ---
 
 ## 12. Reference links

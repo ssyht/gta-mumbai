@@ -23,6 +23,17 @@ export class ScenarioDirector {
   private active: ScenarioDriver | null = null;
   private clock = 0;
   onBeat: ((e: BeatEntry) => void) | null = null;
+  /** Debug: freeze scenario logic when one of these beats is logged (for beat screenshots). */
+  private holdOn = new Set<string>();
+  holding: string | null = null;
+
+  holdAt(beats: string[]): void {
+    this.holdOn = new Set(beats);
+  }
+
+  resume(): void {
+    this.holding = null;
+  }
 
   tick(dt: number): void {
     this.clock += dt;
@@ -49,6 +60,7 @@ export class ScenarioDirector {
     };
     this.log.push(e);
     if (this.log.length > 2000) this.log.splice(0, 500);
+    if (this.holdOn.has(beat)) this.holding = beat;
     this.onBeat?.(e);
   }
 

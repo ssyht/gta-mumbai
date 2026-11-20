@@ -387,18 +387,18 @@ export function standCounter(p: Pose, t: number): Pose {
   return p;
 }
 
-/** Phone held to the right ear, left index finger up ("ek minute"). */
+/** Phone held to the left ear, right hand (still holding the paper) raised: "ek minute". */
 export function phoneCall(p: Pose, t: number, fingerUp: boolean): Pose {
   seatedRead(p, t);
-  set(p, 'shoulderR', -0.5, 0, 0.9);
-  set(p, 'elbowR', -2.3);
-  set(p, 'head', 0.05, -0.2, -0.15);
+  set(p, 'shoulderL', -0.5, 0, -0.9);
+  set(p, 'elbowL', -2.3);
+  set(p, 'head', 0.05, 0.2, 0.15);
   if (fingerUp) {
-    set(p, 'shoulderL', -1.3, 0, 0.1);
-    set(p, 'elbowL', -1.1);
+    set(p, 'shoulderR', -1.3, 0, -0.1);
+    set(p, 'elbowR', -1.1);
   } else {
-    set(p, 'shoulderL', -0.2, 0, 0.1);
-    set(p, 'elbowL', -0.6);
+    set(p, 'shoulderR', -0.2, 0, -0.1);
+    set(p, 'elbowR', -0.6);
   }
   return p;
 }

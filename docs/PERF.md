@@ -42,3 +42,11 @@ Notes
 | Gateway plaza / Taj frontage | WebGPU · High | 320–470 | 1.62–1.75M | 969 extruded footprints in 2 draw calls; one static trimesh collider |
 
 During this session the browser itself was capped at ~30 rAF/s (power saving); CPU work per frame stayed ~1 ms and dynamic resolution held 100% after the fix.
+
+## Scenarios Pack 1: Laxmi General Stores interior (2026-11-20)
+
+| Scene | Backend · preset | Draw calls | Notes |
+|---|---|---|---|
+| Inside the shop, facing the racks | WebGPU · High | 650–800 | 85–110 FPS on M-series; room is 55 meshes (≈132 calls incl. shadow + depth passes) |
+| At the counter with the street visible through the door | WebGPU · High | 1,350–1,610 | Over the 1,500 budget at peaks; the exterior street is ≈1,350 of that, so a street batching pass is still owed |
+| Street, interior culled (plug card) | WebGPU · High | ≈1,360 | Interior adds 0 when the doorway is off-screen or > 25 m away |

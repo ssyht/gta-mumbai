@@ -47,6 +47,10 @@ export class PlayerCamera {
   private baseFov = 65;
   /** 0..1 indoor blend from the interior system (shorter arm, narrower FOV). */
   indoor = 0;
+  /** Debug/photo override: fixed camera position and look target (beat screenshots). */
+  override: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
+  /** World floor/ceiling heights of the room the player is in. */
+  room: { floor: number; ceiling: number } | null = null;
   private readonly smoothTarget = new THREE.Vector3();
   private initialised = false;
 
@@ -144,19 +148,22 @@ export class PlayerCamera {
           ? allowed
           : this.currentDist + (allowed - this.currentDist) * Math.min(1, dt * 3);
       _desired.copy(this.smoothTarget).addScaledVector(_dir, this.currentDist);
-      // Never dip under the ground.
-      // Probe from just above the camera: starting 2 m up would begin inside ceilings (interiors) and lift it onto the roof.
-      const gy = this.physics.groundHeight(
-        _desired.x,
-        _desired.z,
-        _desired.y + (this.indoor > 0 ? 0.4 : 2),
-        -100,
-      );
-      if (_desired.y < gy + 0.25) _desired.y = gy + 0.25;
+      if (this.indoor > 0.5 && this.room) {
+        // Indoors: stay between the floor and the ceiling (a ground probe would start inside the ceiling slab).
+        _desired.y = THREE.MathUtils.clamp(_desired.y, this.room.floor + 0.3, this.room.ceiling - 0.2);
+      } else {
+        // Never dip under the ground.
+        const gy = this.physics.groundHeight(_desired.x, _desired.z, _desired.y + 2, -100);
+        if (_desired.y < gy + 0.25) _desired.y = gy + 0.25;
+      }
       this.camera.position.copy(_desired);
       this.camera.lookAt(this.smoothTarget);
     }
 
+    if (this.override) {
+      this.camera.position.copy(this.override.pos);
+      this.camera.lookAt(this.override.look);
+    }
     if (Math.abs(this.camera.fov - fov) > 0.01) {
       this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 4);
       this.camera.updateProjectionMatrix();

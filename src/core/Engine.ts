@@ -397,9 +397,11 @@ export class Engine {
 
   locationName(): string {
     const p = this.player.position;
+    const room = this.game?.interiors.find((c) => c.inside);
+    if (room) return `${room.data.title} · Bazaar street`;
     if (this.colaba.bounds.containsPoint(new THREE.Vector2(p.x, p.z)))
       return p.distanceTo(this.colaba.gateway) < 220 ? 'Apollo Bunder · Colaba' : 'Colaba';
-    if (Math.abs(p.z) < 12 && p.x > 6 && p.x < 214) return 'Bazaar street';
+    if (Math.abs(p.z) < 20 && p.x > 6 && p.x < 214) return 'Bazaar street';
     if (p.x < -7) return 'Sea-face promenade';
     return 'Test track';
   }

@@ -499,8 +499,9 @@ export class InteriorCell {
         );
     this.notepadSpot.set(ct.x1 - 0.04, ct.y + 0.004, ct.z1 - 0.2);
     this.newspaperSpot.set(ct.x1 - 0.05, ct.y + 0.003, ct.z0 - 0.45);
-    this.changeSpot.set(ct.x0 + 0.04, ct.y + 0.002, (ct.z0 + ct.z1) / 2);
-    this.bagHook.position.set(ct.x1 + 0.12, 0.6, ct.z0 + 0.1);
+    this.changeSpot.set(ct.x0 + 0.12, ct.y + 0.002, ct.z0 - 0.4);
+    // Carry bags hang on a nail on the rack beside the shopkeeper, at hand height.
+    this.bagHook.position.set(W / 2 - 0.4, 1.38, ct.z0 - 0.15);
     this.group.add(this.bagHook);
 
     // Filler stock: one instanced draw call.

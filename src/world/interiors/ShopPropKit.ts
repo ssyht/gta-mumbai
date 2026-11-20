@@ -271,7 +271,7 @@ export function makeBundle(denom: number): THREE.Mesh {
   return m;
 }
 
-const coinGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.0025, 14);
+const coinGeo = new THREE.CylinderGeometry(0.0135, 0.0135, 0.0025, 14);
 export function makeCoin(value: number): THREE.Mesh {
   const gold = value === 10 || value === 2;
   const m = new THREE.Mesh(coinGeo, propMat(gold ? 0xd6b45a : 0xc8c8c8, 0.35, { metalness: 0.9 }));

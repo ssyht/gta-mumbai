@@ -123,7 +123,13 @@ export class KiranaScenario {
   private auntyAway = 30;
   private auntyPhase = 0;
   /** Debug-run state (window.__game.scenario.run('c1-kirana')). */
-  private auto: { steps: Array<() => void>; i: number; timer: number; autoplay: boolean } | null = null;
+  private auto: {
+    steps: Array<() => void>;
+    ready: Array<() => boolean>;
+    i: number;
+    timer: number;
+    autoplay: boolean;
+  } | null = null;
   forcedVariant: 'phone' | 'incense' | 'none' | null = null;
   browsing = false;
 
@@ -314,14 +320,30 @@ export class KiranaScenario {
     yield* tween(0.5, (k) => (this.look.w = ease(k)));
     if (variant === 'phone') {
       this.director.beat(SC, 'variant-phone');
-      yield* this.settle(this.cell.handset, this.shah.handL, new THREE.Vector3(0, -0.03, 0.03), 0.01);
-      this.cell.handset.visible = false;
+      const handset = () =>
+        this.cell.handset.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.03, 0));
+      yield* tween(0.3, (e) => (this.lean = 0.4 * ease(e)));
+      yield* this.reach(this.ikL, handset, 0.4);
+      yield* this.settle(this.cell.handset, this.shah.handL, new THREE.Vector3(0, -0.03, 0.03), 0.08);
+      yield* tween(0.3, (e) => (this.lean = 0.4 * (1 - ease(e))));
+      yield* this.reach(this.ikL, () => this.ikL.target, 0.3, 0);
       this.mode = 'phone';
       this.modeT = 0;
       const d = this.say('phoneWait');
       yield* wait(Math.max(2.6, d + 0.6));
-      this.cell.handset.visible = true;
-      yield* this.settle(this.cell.handset, this.cell.group, this.cell.handsetHome.clone(), 0.01);
+      this.mode = 'read';
+      const home = () => this.world(this.cell.handsetHome.clone().add(new THREE.Vector3(0, 0.03, 0)));
+      yield* tween(0.3, (e) => (this.lean = 0.4 * ease(e)));
+      yield* this.reach(this.ikL, home, 0.45);
+      yield* this.settle(
+        this.cell.handset,
+        this.cell.group,
+        this.cell.handsetHome.clone(),
+        0.08,
+        new THREE.Euler(0, 0, 0),
+      );
+      yield* this.reach(this.ikL, () => this.ikL.target, 0.3, 0);
+      yield* tween(0.3, (e) => (this.lean = 0.4 * (1 - ease(e))));
     }
     // Beat 2 happens when the player crosses the threshold (logged in update()).
     while (!this.cell.inside) yield 0;
@@ -355,17 +377,30 @@ export class KiranaScenario {
     const altar = this.cell.altarPoint.clone();
     const spot = new THREE.Vector3(altar.x - 0.35, 0, altar.z + 0.3);
     const start = this.shah.root.position.clone();
+    const yaw0 = this.shah.root.rotation.y;
+    const yawAltar = Math.atan2(altar.x - spot.x, altar.z - spot.z);
+    const turn = (from: number, to: number, k: number): number =>
+      from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * k;
     this.mode = 'walk';
-    yield* tween(1.0, (k) => this.shah.root.position.lerpVectors(start, spot, ease(k)));
+    yield* tween(1.0, (k) => {
+      this.shah.root.position.lerpVectors(start, spot, ease(k));
+      this.shah.root.rotation.y = turn(yaw0, yawAltar, ease(Math.min(1, k * 1.5)));
+    });
     this.mode = 'stand';
     yield* this.reach(this.ikR, () => this.world(altar.clone().add(new THREE.Vector3(-0.05, 0.05, 0))), 0.5);
+    this.host.smoke(this.world(altar.clone().add(new THREE.Vector3(0, 0.1, 0))));
+    this.director.beat(SC, 'incense-lit');
     for (let i = 0; i < 6; i++) {
       this.host.smoke(this.world(altar.clone().add(new THREE.Vector3(0, 0.1, 0))));
       yield* wait(0.25);
     }
     yield* this.reach(this.ikR, () => this.ikR.target, 0.3, 0);
     this.mode = 'walk';
-    yield* tween(1.0, (k) => this.shah.root.position.lerpVectors(spot, this.standPos, ease(k)));
+    yield* tween(1.0, (k) => {
+      this.shah.root.position.lerpVectors(spot, this.standPos, ease(k));
+      this.shah.root.rotation.y = turn(yawAltar, yaw0, ease(Math.min(1, k * 1.5)));
+    });
+    this.shah.root.rotation.y = yaw0;
     this.mode = 'stand';
   }
 
@@ -377,7 +412,8 @@ export class KiranaScenario {
     let k = 0;
     for (const s of items) {
       const p = () => s.obj.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.04, 0));
-      yield* tween(0.3, (e) => (this.lean = 0.55 * ease(e)));
+      const l1 = Math.max(0.3, this.bendFor('R', p(), this.shah));
+      yield* tween(0.3, (e) => (this.lean = l1 * ease(e)));
       yield* this.reach(this.ikR, p, 0.4);
       yield* this.grip(s.obj, this.shah.handR);
       // Lift to his face and turn it to read the price.
@@ -386,7 +422,7 @@ export class KiranaScenario {
           .getWorldPosition(new THREE.Vector3())
           .add(this.forward(0.28))
           .add(new THREE.Vector3(0, -0.12, 0));
-      yield* tween(0.3, (e) => (this.lean = 0.55 * (1 - ease(e))));
+      yield* tween(0.3, (e) => (this.lean = l1 * (1 - ease(e))));
       yield* this.reach(this.ikR, face, 0.35);
       yield* tween(0.45, (e) => (s.obj.rotation.y = e * Math.PI));
       this.sayLine(
@@ -400,7 +436,7 @@ export class KiranaScenario {
       const slot = new THREE.Vector3(
         ct.x0 + (2.5 / ct.rows) * (ct.x1 - ct.x0),
         ct.y + 0.002,
-        ct.z0 + ((k + 0.5) / ct.cols) * (ct.z1 - ct.z0),
+        ct.z0 + ((Math.min(k, 1) + 2.5) / ct.cols) * (ct.z1 - ct.z0),
       );
       k++;
       yield* this.reach(this.ikR, () => this.world(slot.clone().add(new THREE.Vector3(0, 0.04, 0))), 0.4);
@@ -436,7 +472,11 @@ export class KiranaScenario {
     this.stage = 'paying';
     const cell = this.cell;
     // Take the note(s).
-    yield* tween(0.3, (e) => (this.lean = 0.55 * ease(e)));
+    const lNote = Math.max(
+      0.3,
+      this.bendFor('R', notes[0]!.getWorldPosition(new THREE.Vector3()), this.shah),
+    );
+    yield* tween(0.3, (e) => (this.lean = lNote * ease(e)));
     for (const n of notes) {
       yield* this.reach(
         this.ikR,
@@ -445,19 +485,32 @@ export class KiranaScenario {
       );
       yield* this.grip(n, this.shah.handR);
     }
-    yield* tween(0.3, (e) => (this.lean = 0.55 * (1 - ease(e))));
+    yield* tween(0.3, (e) => (this.lean = lNote * (1 - ease(e))));
     if (notes.some((n) => n.userData.denom === 500)) {
       // Hold it up to the tube light.
       this.say('counterfeit');
       const up = () =>
         this.shah.joints.head
           .getWorldPosition(new THREE.Vector3())
-          .add(this.forward(0.25))
-          .add(new THREE.Vector3(0, 0.22, 0));
+          .add(this.forward(0.32))
+          .add(new THREE.Vector3(0, 0.06, 0));
       yield* this.reach(this.ikR, up, 0.4);
       yield* tween(0.9, (e) => (notes[0]!.rotation.z = Math.sin(e * Math.PI * 2) * 0.3));
       this.director.beat(SC, 'counterfeit-check');
     }
+    // Pass the note(s) to the left hand: the galla is on his left.
+    const chest = () =>
+      this.shah.joints.spine
+        .getWorldPosition(new THREE.Vector3())
+        .add(this.forward(0.3))
+        .add(new THREE.Vector3(0, 0.22, 0));
+    yield* this.reach(this.ikR, chest, 0.35);
+    yield* this.reach(this.ikL, () => this.shahHandWorld('R'), 0.3);
+    for (const n of notes) yield* this.settle(n, this.shah.handL, new THREE.Vector3(0, -0.035, 0.02), 0.06);
+    yield* this.reach(this.ikR, () => this.ikR.target, 0.25, 0);
+    // Sidestep toward the galla (it's on his left, under the counter top).
+    const byDrawer = this.standPos.clone().add(new THREE.Vector3(0, 0, 0.28));
+    yield* tween(0.35, (e) => this.shah.root.position.lerpVectors(this.standPos, byDrawer, ease(e)));
     // Open the galla: left hand to the handle, drawer slides out with a coin rattle.
     yield* this.reach(this.ikL, () => cell.drawerHandle.getWorldPosition(new THREE.Vector3()), 0.4);
     this.audio.clink('drawer', 1.5);
@@ -470,7 +523,7 @@ export class KiranaScenario {
     // Note(s) into the drawer.
     const inside = () =>
       cell.drawerInside.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.03, -0.05));
-    yield* this.reach(this.ikR, inside, 0.35);
+    yield* this.reach(this.ikL, inside, 0.35);
     for (const [i, n] of notes.entries())
       yield* this.settle(
         n,
@@ -493,36 +546,36 @@ export class KiranaScenario {
       obj.position.set((Math.random() - 0.5) * 0.12, 0.012, 0.05 + Math.random() * 0.08);
       cell.drawerInside.add(obj);
       yield* this.reach(
-        this.ikR,
+        this.ikL,
         () => obj.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.02, 0)),
         0.25,
       );
-      yield* this.grip(obj, this.shah.handR, 0.06);
-      yield* tween(0.2, (e) => (this.lean = 0.5 * ease(e)));
+      yield* this.grip(obj, this.shah.handL, 0.06);
+      yield* tween(0.2, (e) => (this.lean = 0.65 * ease(e)));
       const dest = v.coin
         ? spot
             .clone()
             .add(
               new THREE.Vector3(
                 0.0 + (coinIdx % 2) * 0.006,
-                0.0013 + coinIdx * 0.0025,
+                0.0013 + ch.notes.length * 0.003 + coinIdx * 0.0025,
                 (coinIdx % 3) * 0.004,
               ),
             )
-        : spot.clone().add(new THREE.Vector3(0.02, 0.0015 + noteIdx * 0.003, 0.09));
-      yield* this.reach(this.ikR, () => this.world(dest.clone().add(new THREE.Vector3(0, 0.025, 0))), 0.3);
+        : spot.clone().add(new THREE.Vector3(0, 0.0015 + noteIdx * 0.003, 0));
+      yield* this.reach(this.ikL, () => this.world(dest.clone().add(new THREE.Vector3(0, 0.025, 0))), 0.3);
       yield* this.settle(obj, cell.group, dest, 0.06, new THREE.Euler(0, Math.random() * 0.5, 0));
       if (v.coin) {
         this.audio.clink('coin', 1.2);
         coinIdx++;
       } else noteIdx++;
       pieces.push(obj);
-      yield* tween(0.15, (e) => (this.lean = 0.5 * (1 - ease(e))));
+      yield* tween(0.15, (e) => (this.lean = 0.65 * (1 - ease(e))));
       if (pieces.length >= 9) break; // he rounds off the last few coins as a toffee, like everyone does
     }
     this.director.beat(SC, 'change', { pieces: pieces.length, amount: paid - this.total });
     this.say('change', { change: `₹${paid - this.total}` });
-    yield* this.reach(this.ikR, () => this.ikR.target, 0.25, 0);
+    yield* this.reach(this.ikL, () => this.ikL.target, 0.25, 0);
     // Close the drawer with a hip bump.
     this.mode = 'hipBump';
     this.modeT = 0;
@@ -533,6 +586,7 @@ export class KiranaScenario {
     cell.drawerOpen = 0;
     this.audio.clink('thump', 1.5);
     this.mode = 'stand';
+    yield* tween(0.35, (e) => this.shah.root.position.lerpVectors(byDrawer, this.standPos, ease(e)));
     this.director.beat(SC, 'galla-close');
     // The player scoops the change.
     this.startHands(this.playerScoop(pieces));
@@ -543,7 +597,7 @@ export class KiranaScenario {
     yield* this.reach(this.ikL, () => cell.bagHook.getWorldPosition(new THREE.Vector3()), 0.35);
     yield* this.settle(bag, this.shah.handL, new THREE.Vector3(0, -0.02, 0.02), 0.08);
     const bagMouth = () => this.shahHandWorld('L').add(new THREE.Vector3(0, -0.06, 0));
-    yield* this.reach(this.ikL, () => this.world(new THREE.Vector3(0.95, 1.22, -2.6)), 0.4);
+    yield* this.reach(this.ikL, () => this.world(new THREE.Vector3(0.95, 1.42, -2.6)), 0.4);
     for (const s of this.onCounter) {
       yield* tween(0.2, (e) => (this.lean = 0.35 * ease(e)));
       yield* this.reach(
@@ -560,16 +614,28 @@ export class KiranaScenario {
     this.director.beat(SC, 'bag', { items: this.onCounter.length });
     yield* this.reach(this.ikR, () => this.ikR.target, 0.2, 0);
     // Paired handoff: both hands meet over the counter.
-    const meet = () => this.world(new THREE.Vector3(0.62, 1.12, -2.6));
+    const meet = () => this.world(new THREE.Vector3(0.82, 1.38, -2.6));
+    yield* tween(0.3, (e) => (this.lean = 0.5 * ease(e)));
     yield* this.reach(this.ikL, meet, 0.4);
     while (this.handTask) yield 0;
     yield* this.reach(this.pIkL, meet, 0.4);
     yield* wait(0.15);
+    this.director.beat(SC, 'handoff-align', {
+      gap: +this.shahHandWorld('L')
+        .distanceTo(this.host.playerRig.handL.getWorldPosition(new THREE.Vector3()))
+        .toFixed(3),
+      shahToMeet: +this.shahHandWorld('L').distanceTo(meet()).toFixed(3),
+      playerToMeet: +this.host.playerRig.handL
+        .getWorldPosition(new THREE.Vector3())
+        .distanceTo(meet())
+        .toFixed(3),
+    });
     yield* this.settle(bag, this.host.playerRig.handL, new THREE.Vector3(0, -0.02, 0.02), 0.08);
     this.bag = bag;
     this.bagTimer = 25;
     this.director.beat(SC, 'handoff');
     yield* this.reach(this.ikL, () => this.ikL.target, 0.3, 0);
+    yield* tween(0.3, (e) => (this.lean = 0.5 * (1 - ease(e))));
     yield* this.reach(this.pIkL, () => this.pIkL.target, 0.3, 0);
     for (const s of this.onCounter) {
       if (s.item.heal) this.host.heal(s.item.heal);
@@ -611,17 +677,40 @@ export class KiranaScenario {
     this.pFaceYaw = Math.atan2(t.x - pp.x, t.z - pp.z);
     const fridge = this.cell.data.stock.find((d) => d.id === s.item.id)?.level === -1;
     if (fridge) yield* tween(0.3, (e) => (this.cell.fridgeOpen = ease(e)));
-    const drop = Math.max(0, 1.25 - t.y);
-    yield* tween(0.2, (e) => (this.pBend = Math.min(0.5, drop * 1.2) * ease(e)));
+    const bend = this.bendFor(hand === 0 ? 'R' : 'L', t);
+    yield* tween(0.2, (e) => (this.pBend = bend * ease(e)));
     yield* this.reach(ik, at, 0.3);
     yield* this.grip(s.obj, anchor);
     this.held[hand] = s;
     this.director.beat(SC, 'pickup', { id: s.item.id });
-    yield* tween(0.2, (e) => (this.pBend = Math.min(0.5, drop * 1.2) * (1 - ease(e))));
+    yield* tween(0.2, (e) => (this.pBend = bend * (1 - ease(e))));
     // Carry it at waist height.
     yield* this.reach(ik, () => this.carryPoint(hand), 0.3, 0.6);
     if (fridge) yield* tween(0.3, (e) => (this.cell.fridgeOpen = 1 - ease(e)));
     this.pFaceYaw = null;
+  }
+
+  /**
+   * Spine bend that brings a target into arm's reach: the shoulder swings forward and down
+   * around the spine joint (0.48 m below it), so bend until the remaining gap fits the arm.
+   */
+  private bendFor(side: 'L' | 'R', target: THREE.Vector3, rig: HumanoidRig = this.host.playerRig): number {
+    rig.root.updateMatrixWorld(true);
+    const spine = rig.joints.spine.getWorldPosition(new THREE.Vector3());
+    // World-space facing (rigs inside a rotated room have a local yaw only).
+    const fwd = rig.root.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
+    const side3 = new THREE.Vector3(fwd.z, 0, -fwd.x).multiplyScalar(side === 'L' ? 0.2 : -0.2);
+    let best = 0;
+    for (let b = 0; b <= 0.8; b += 0.05) {
+      const sh = spine
+        .clone()
+        .add(side3)
+        .addScaledVector(fwd, Math.sin(b) * 0.48)
+        .add(new THREE.Vector3(0, Math.cos(b) * 0.48, 0));
+      best = b;
+      if (sh.distanceTo(target) < 0.53) break;
+    }
+    return best;
   }
 
   private carryPoint(hand: 0 | 1): THREE.Vector3 {
@@ -670,7 +759,7 @@ export class KiranaScenario {
     const slot = new THREE.Vector3(
       ct.x0 + (0.5 / ct.rows) * (ct.x1 - ct.x0),
       ct.y + 0.002,
-      ct.z0 + (0.5 / ct.cols) * (ct.z1 - ct.z0),
+      ct.z0 + (2.6 / ct.cols) * (ct.z1 - ct.z0),
     );
     yield* this.reach(this.pIkR, () => this.world(slot.clone().add(new THREE.Vector3(0, 0.04, 0))), 0.4);
     notes.forEach((n, i) => {
@@ -752,8 +841,13 @@ export class KiranaScenario {
       this.mode = 'stand';
     }
 
-    this.runCo('task', dt);
-    this.runCo('hand', dt);
+    // Pose + IK first, so coroutines that hand objects over see this frame's real hand positions
+    // (the player controller resets the arms to FK every frame before we run).
+    this.animate(dt);
+    if (!this.director.holding) {
+      this.runCo('task', dt);
+      this.runCo('hand', dt);
+    }
     this.updateCustomer(dt);
     this.updatePlayerInput(dt, inside);
     if (this.bag && this.bagTimer > 0) {
@@ -763,7 +857,6 @@ export class KiranaScenario {
         this.bag = null;
       }
     }
-    this.animate(dt);
     this.debugTick(dt);
   }
 
@@ -1013,6 +1106,11 @@ export class KiranaScenario {
         this.shah.root.localToWorld(new THREE.Vector3(side === 'L' ? 0.8 : -0.8, 0.6, -0.6));
       if (this.ikR.w > 0) solveArm(this.shah, 'R', this.ikR.target, this.ikR.w, pole('R'));
       if (this.ikL.w > 0) solveArm(this.shah, 'L', this.ikL.target, this.ikL.w, pole('L'));
+      else if (this.mode === 'phone') {
+        // Handset to the left ear.
+        const ear = this.shah.joints.head.localToWorld(new THREE.Vector3(0.1, 0.09, 0.02));
+        solveArm(this.shah, 'L', ear, Math.min(1, this.modeT * 3), pole('L'));
+      }
     }
     // Player overlays: bend, face the item, arm IK.
     const rig = this.host.playerRig;
@@ -1076,6 +1174,17 @@ export class KiranaScenario {
       i: 0,
       timer: 0,
       autoplay: opts.auto !== false,
+      // Each step waits for the scenario to be ready for it (index-aligned with steps).
+      ready: [
+        () => true,
+        () => true,
+        () => this.stage === 'greeted' && !this.task,
+        () => true,
+        () => true,
+        () => this.stage === 'greeted' && !this.task,
+        () => this.stage === 'awaitPay' && !this.task,
+        () => this.stage === 'greeted' && !this.task,
+      ],
       steps: [
         () => tp(0, 5, yawIn),
         () => tp(0, -0.8, yawIn),
@@ -1112,7 +1221,7 @@ export class KiranaScenario {
     const a = this.auto;
     if (!a || !a.autoplay) return;
     a.timer -= dt;
-    if (a.timer > 0 || this.handTask) return;
+    if (a.timer > 0 || this.handTask || !(a.ready[a.i]?.() ?? true)) return;
     if (!this.debugStep()) {
       a.autoplay = false;
       this.forcedVariant = null;
