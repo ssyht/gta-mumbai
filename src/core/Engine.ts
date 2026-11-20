@@ -2,7 +2,7 @@ import * as THREE from 'three/webgpu';
 import { AssetManager } from './AssetManager';
 import { createGameBus, type GameBus } from './events';
 import { Input } from './Input';
-import { QUALITY_PRESETS, type SettingsData } from './Settings';
+import { QUALITY_PRESETS, saveSettings, type SettingsData } from './Settings';
 import { createGameStore, type GameState, type Store } from './Store';
 import { FixedStepClock } from './Time';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
@@ -33,6 +33,7 @@ import { PerfHud } from '../ui/PerfHud';
 import { PauseMenu } from '../ui/PauseMenu';
 import { DevPanel } from '../ui/DevPanel';
 import { parseClock } from './Settings';
+import { GameplayLayer } from './GameplayLayer';
 
 export interface EngineOptions {
   canvas: HTMLCanvasElement;
@@ -71,6 +72,10 @@ export class Engine {
   traffic!: TrafficSystem;
   pathCrowd!: PathCrowd;
   colaba!: ColabaDistrict;
+  connectorTo = new THREE.Vector3();
+  /** Named places added by later districts (missions reference them). */
+  extraPlaces: Record<string, THREE.Vector3> = {};
+  game!: GameplayLayer;
   interaction!: InteractionSystem;
   audio!: AudioSystem;
   hud!: Hud;
@@ -147,6 +152,7 @@ export class Engine {
     this.colaba = buildColaba(this.scene, this.physics, colabaData, colabaOffset, this.track.lights);
     const connFrom = new THREE.Vector3(111, 0, 150);
     const connTo = buildConnector(this.scene, colabaData, colabaOffset, connFrom);
+    this.connectorTo = connTo;
 
     // Lane graph from every drivable road (CLAUDE.md §4.3).
     this.graph = new LaneGraph();
@@ -264,7 +270,7 @@ export class Engine {
       this.store,
     );
     this.audio = new AudioSystem(this.cam.camera, this.scene, this.bus, (id) => this.vehicles.get(id));
-    this.audio.setVolume(this.settings.masterVolume);
+    this.audio.setVolume(this.settings.muted ? 0 : this.settings.masterVolume);
 
     this.hud = new Hud(ui, this.bus, this.store);
     this.perf = new PerfHud(ui, this.gr, this.physics, () => QUALITY_PRESETS[this.settings.quality].label);
@@ -283,6 +289,7 @@ export class Engine {
       onTimeChange: () => this.menu.syncClock(this.tod.clockMinutes),
     });
 
+    this.game = new GameplayLayer(this, ui);
     this.bus.on('settings:changed', ({ settings }) => this.applySettings(settings));
     this.bus.on('player:ragdoll', () => undefined);
     this.player.onRagdoll = (speed) => this.bus.emit('player:ragdoll', { speed });
@@ -338,7 +345,7 @@ export class Engine {
     this.settings = s;
     this.gr.dynamicEnabled = s.dynamicResolution;
     this.perf.setVisible(s.showPerfHud);
-    this.audio.setVolume(s.masterVolume);
+    this.audio.setVolume(s.muted ? 0 : s.masterVolume);
     if (s.timeMode !== prev.timeMode) this.tod.setMode(s.timeMode);
     if (s.manualMinutes !== prev.manualMinutes) this.tod.setManualMinutes(s.manualMinutes);
     this.tod.speed = s.timeSpeed;
@@ -367,6 +374,7 @@ export class Engine {
       const lv = v.physics.body.linvel();
       if (lv.x * lv.x + lv.z * lv.z < 4) continue;
       out.push({
+        player: v === this.player.seat?.vehicle,
         position: v.root.position,
         velocity: new THREE.Vector3(lv.x, 0, lv.z),
         radius: Math.max(v.profile.chassis.halfExtents[0], v.profile.chassis.halfExtents[2] * 0.6),
@@ -432,6 +440,14 @@ export class Engine {
 
     if (input.wasPressed('perfHud')) this.perf.setVisible(!this.perf.visible);
     if (input.wasPressed('devPanel')) this.dev.toggle();
+    if (input.wasPressed('mute')) {
+      const muted = !this.settings.muted;
+      this.settings = { ...this.settings, muted };
+      saveSettings(this.settings);
+      this.menu.setMuted(muted);
+      this.audio.setVolume(muted ? 0 : this.settings.masterVolume);
+      this.bus.emit('ui:toast', { text: muted ? 'Sound off (M to unmute)' : 'Sound on' });
+    }
 
     const state = this.store.get();
     const running = state.started && !state.paused;
@@ -490,6 +506,7 @@ export class Engine {
       sensitivity: this.settings.mouseSensitivity,
       invertY: this.settings.invertY,
       excludeBody: this.player.state === 'seated' && pv ? pv.physics.body : null,
+      aiming: this.player.aiming,
     });
     this.player.rig.setVisible(this.cam.mode !== 'firstPerson');
     this.sky.update(this.tod, this.cam.camera, this.post);
@@ -504,6 +521,7 @@ export class Engine {
       this.cam.camera.position,
       pv && this.player.seat?.seat.def.type === 'driver' ? pv : null,
     );
+    this.game.update(dt, running);
     this.hud.update(
       dt,
       this.tod.clockMinutes,

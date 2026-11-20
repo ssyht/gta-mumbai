@@ -313,3 +313,25 @@ export function shakeFist(p: Pose, t: number): Pose {
   set(p, 'neck', -0.15);
   return p;
 }
+
+/** Two-handed pistol aim on top of whatever the legs are doing. */
+export function overlayAim(p: Pose): Pose {
+  set(p, 'shoulderR', -1.5, 0.15, -0.05);
+  set(p, 'elbowR', -0.05);
+  set(p, 'shoulderL', -1.35, -0.2, 0.42);
+  set(p, 'elbowL', -0.45);
+  set(p, 'spine', p[IDX.spine]!, 0.12, 0);
+  set(p, 'neck', -0.05, 0.05, 0);
+  return p;
+}
+
+/** Right jab; `t01` 0 → 1 over the punch. */
+export function overlayPunch(p: Pose, t01: number): Pose {
+  const k = Math.sin(Math.min(1, t01) * Math.PI);
+  set(p, 'shoulderR', -1.55 * k - 0.2 * (1 - k), 0, -0.1);
+  set(p, 'elbowR', -1.4 * (1 - k) - 0.05);
+  set(p, 'shoulderL', -0.9, 0, 0.25);
+  set(p, 'elbowL', -1.6);
+  set(p, 'spine', 0.1, -0.35 * k, 0);
+  return p;
+}

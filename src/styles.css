@@ -193,7 +193,7 @@ kbd {
   display: none;
   position: absolute;
   left: 18px;
-  bottom: 22px;
+  bottom: 268px;
   padding: 10px 14px;
   background: #1b0606;
   border: 2px solid #3b0d0d;
@@ -380,4 +380,308 @@ kbd {
   #clock b {
     font-size: 34px;
   }
+}
+
+/* Minimap (bottom-left, semi-transparent) */
+#minimap {
+  position: absolute;
+  left: 18px;
+  bottom: 44px;
+  border-radius: 14px;
+  opacity: 0.82;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Health / armour under the minimap */
+#bars {
+  position: absolute;
+  left: 18px;
+  bottom: 22px;
+  width: 210px;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 4px;
+}
+#bars > div {
+  height: 9px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 3px;
+  overflow: hidden;
+}
+#bars i {
+  display: block;
+  height: 100%;
+  transition: width 0.2s;
+}
+#bars .hp i {
+  background: #4cd964;
+}
+#bars .ar i {
+  background: #5ac8fa;
+}
+#bars.low .hp i {
+  background: #ff3b30;
+  animation: pulse 0.8s infinite alternate;
+}
+@keyframes pulse {
+  to {
+    opacity: 0.4;
+  }
+}
+
+/* Money, stars, weapon (top-right, under the clock) */
+#money {
+  position: absolute;
+  top: 146px;
+  right: 18px;
+  font-family: var(--display);
+  font-size: 30px;
+  color: #7ee08a;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+#money.flash::after {
+  content: attr(data-delta);
+  display: block;
+  font-size: 20px;
+  text-align: right;
+}
+#money.loss {
+  color: #ff8a80;
+}
+#stars {
+  position: absolute;
+  top: 188px;
+  right: 18px;
+  font-size: 22px;
+  letter-spacing: 2px;
+  transition: opacity 0.3s;
+}
+#stars i {
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.25);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+#stars i.on {
+  color: #ffcf1a;
+}
+#stars.evading i.on {
+  animation: pulse 0.5s infinite alternate;
+}
+#weapon {
+  position: absolute;
+  top: 222px;
+  right: 18px;
+  text-align: right;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+}
+#weapon b {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  display: block;
+}
+#weapon span {
+  color: var(--muted);
+  font-size: 13px;
+}
+#crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+#crosshair::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  width: 2px;
+  height: 2px;
+  background: #fff;
+}
+
+/* Secondary hint + mission objective */
+#hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(9vh + 54px);
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+#objective {
+  position: absolute;
+  left: 50%;
+  top: 70px;
+  transform: translateX(-50%);
+  max-width: min(720px, calc(100vw - 32px));
+  padding: 8px 18px;
+  background: rgba(10, 9, 8, 0.6);
+  border-bottom: 3px solid var(--peeli);
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 17px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+/* Hospitalised / arrested / mission cards */
+#card {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.7));
+  opacity: 0;
+  transition: opacity 0.6s;
+}
+#card.on {
+  opacity: 1;
+}
+#card b {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(56px, 11vw, 120px);
+  letter-spacing: 0.06em;
+  color: var(--peeli);
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.8);
+}
+#card span {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Arrest progress ring */
+#bust {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 54px;
+  height: 54px;
+  margin-left: -27px;
+  border-radius: 50%;
+  background: conic-gradient(#2f6bff calc(var(--p, 0) * 360deg), rgba(0, 0, 0, 0.4) 0);
+  opacity: 0;
+}
+
+/* Phone */
+#phone {
+  position: absolute;
+  right: 24px;
+  bottom: -460px;
+  width: 250px;
+  padding: 14px 16px 16px;
+  background: #101418;
+  border: 3px solid #2a2f35;
+  border-radius: 26px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  transition: bottom 0.25s;
+  pointer-events: none;
+}
+#phone.open {
+  bottom: 120px;
+}
+#phone .bar {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+#phone h4 {
+  margin: 8px 0 10px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 26px;
+  letter-spacing: 0.04em;
+  color: var(--peeli);
+}
+#phone ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+#phone li {
+  padding: 7px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+#phone li small {
+  display: block;
+  margin-left: 32px;
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+#phone p {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Camera mode hides the HUD */
+body.photo #ui > :not(#card) {
+  display: none !important;
+}
+
+/* Touch controls */
+#touch {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+#touch .stick {
+  position: absolute;
+  left: 28px;
+  bottom: 120px;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  pointer-events: auto;
+}
+#touch .stick i {
+  position: absolute;
+  left: 40px;
+  top: 40px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 207, 26, 0.6);
+}
+#touch .btns {
+  position: absolute;
+  right: 20px;
+  bottom: 110px;
+  display: grid;
+  grid-template-columns: repeat(4, 58px);
+  gap: 10px;
+  pointer-events: auto;
+}
+#touch button {
+  height: 58px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-family: var(--display);
+  font-size: 16px;
 }

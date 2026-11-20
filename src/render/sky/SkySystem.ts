@@ -52,6 +52,11 @@ export class SkySystem {
   phase: DayPhase = 'day';
   /** Exposure bias from the dev panel (multiplies the grade exposure). */
   exposureBias = 1;
+  weatherCloud = 0.2;
+  weatherRain = 0;
+  weatherHaze = 0;
+  weatherFlash = 0;
+  private night01 = 0;
   fogBias = 1;
 
   private readonly stars: THREE.Points;
@@ -247,13 +252,28 @@ export class SkySystem {
     const morning = tod.state.isMorning;
     this.phase = dayPhase(alt, morning);
     const g = (this.grade = gradeFor(alt, morning));
+    // Weather: monsoon greys and desaturates, thickens haze, dims the sun.
+    const wr = this.weatherRain;
+    const wc = this.weatherCloud;
+    const wh = this.weatherHaze;
+    g.saturation *= 1 - 0.3 * wr - 0.1 * wc;
+    g.contrast *= 1 + 0.08 * wr;
+    g.exposure *= 1 - 0.12 * wr + 0.5 * this.weatherFlash;
+    g.fogDensity *= 1 + 2.2 * wr + 1.2 * wh;
+    for (let i = 0; i < 3; i++)
+      g.fogColor[i] =
+        g.fogColor[i]! * (1 - 0.4 * wr) +
+        [0.42, 0.46, 0.44][i]! * 0.4 * wr * (0.3 + 0.7 * (1 - this.night01));
+    g.tint = [g.tint[0] * (1 - 0.08 * wr), g.tint[1], g.tint[2] * (1 + 0.04 * wr)];
+    this.sky.cloudCoverage.value = 0.25 + 0.7 * wc;
 
     // One key light: the sun by day, the moon by night (moon shadows, no extra light/recompile).
     const useSun = alt > -3 || moonAlt <= 0;
     if (useSun) {
       const [r, gg, b] = sunColor(alt);
       this.key.color.setRGB(r, gg, b);
-      this.key.intensity = sunIntensity(alt);
+      this.key.intensity =
+        sunIntensity(alt) * (1 - 0.8 * Math.max(this.weatherRain, this.weatherCloud * 0.7));
       this.tmp.copy(sunDir);
     } else {
       this.key.color.copy(MOONLIGHT);
@@ -313,6 +333,7 @@ export class SkySystem {
     lightUniforms.street.value = streetLightFactor(alt);
     lightUniforms.windows.value = windowLightFactor(alt);
     lightUniforms.night.value = nightFactor(alt);
+    this.night01 = nightFactor(alt);
 
     // Sky dome objects follow the camera.
     const cp = camera.position;

@@ -24,6 +24,7 @@ interface Walker {
   speed: number;
   phase: number;
   down: number;
+  flee: number;
   pos: THREE.Vector3;
   yaw: number;
   active: boolean;
@@ -44,6 +45,7 @@ export class PathCrowd {
   private readonly rnd = mulberry32(777);
   private timer = 0;
   density = 1;
+  onPlayerHit: (() => void) | null = null;
 
   constructor(
     scene: THREE.Scene,
@@ -78,11 +80,69 @@ export class PathCrowd {
         speed: 1 + this.rnd() * 0.5,
         phase: this.rnd() * 10,
         down: 0,
+        flee: 0,
         pos: new THREE.Vector3(),
         yaw: 0,
         active: false,
         time: this.rnd() * 100,
       });
+    }
+  }
+
+  strike(at: THREE.Vector3, dir: THREE.Vector3, range: number): number {
+    let n = 0;
+    for (const w of this.walkers) {
+      if (!w.active || w.down > 0) continue;
+      const dx = w.pos.x - at.x;
+      const dz = w.pos.z - at.z;
+      const d = Math.hypot(dx, dz);
+      if (d < range && (dx * dir.x + dz * dir.z) / Math.max(d, 0.01) > 0.4) {
+        w.down = 3;
+        w.yaw = Math.atan2(-dir.x, -dir.z);
+        P.lying(w.pose);
+        n++;
+      }
+    }
+    return n;
+  }
+
+  shoot(origin: THREE.Vector3, dir: THREE.Vector3, maxDist: number): number {
+    let best = -1;
+    let hit: Walker | null = null;
+    for (const w of this.walkers) {
+      if (!w.active || w.down > 0) continue;
+      const t =
+        (w.pos.x - origin.x) * dir.x + (w.pos.y + 1 - origin.y) * dir.y + (w.pos.z - origin.z) * dir.z;
+      if (t < 0 || t > maxDist || (best >= 0 && t > best)) continue;
+      const cx = origin.x + dir.x * t - w.pos.x;
+      const cy = origin.y + dir.y * t - (w.pos.y + 1);
+      const cz = origin.z + dir.z * t - w.pos.z;
+      if (cx * cx + cz * cz < 0.16 && Math.abs(cy) < 0.95) {
+        best = t;
+        hit = w;
+      }
+    }
+    if (hit) {
+      hit.down = 6;
+      P.lying(hit.pose);
+    }
+    return best;
+  }
+
+  panic(at: THREE.Vector3, radius: number): void {
+    for (const w of this.walkers) {
+      if (w.active && w.down <= 0 && w.pos.distanceTo(at) < radius) {
+        w.flee = 5 + this.rnd() * 4;
+        // Turn to walk away from the danger.
+        const a = this.graph.nodes[w.from]!.p;
+        const b = this.graph.nodes[w.to]!.p;
+        if (b.distanceTo(at) < a.distanceTo(at)) {
+          const f = w.from;
+          w.from = w.to;
+          w.to = f;
+          w.t = 1 - w.t;
+        }
+      }
     }
   }
 
@@ -141,7 +201,8 @@ export class PathCrowd {
         if (w.down > 1) P.lying(w.target);
         else P.idle(w.target, w.time);
       } else {
-        w.t += (w.speed * dt) / len;
+        w.flee = Math.max(0, w.flee - dt);
+        w.t += ((w.flee > 0 ? 4.2 : w.speed) * dt) / len;
         if (w.t >= 1) {
           const next = this.graph.pickNext(w.from, w.to, this.rnd, false);
           w.from = w.to;
@@ -149,7 +210,8 @@ export class PathCrowd {
           w.t = 0;
           if (this.rnd() < 0.08) w.side = (w.side * -1) as 1 | -1; // cross the street
         }
-        P.locomotion(w.target, (w.phase += dt * 5.6 * w.speed), w.speed);
+        if (w.flee > 0) P.locomotion(w.target, (w.phase += dt * 9), 5.5);
+        else P.locomotion(w.target, (w.phase += dt * 5.6 * w.speed), w.speed);
       }
       const dx = (b.x - a.x) / len;
       const dz = (b.z - a.z) / len;
@@ -166,6 +228,7 @@ export class PathCrowd {
         const d = Math.hypot(hx, hz);
         const sp = h.velocity.length();
         if (w.down <= 0 && sp > 4 && d < h.radius + 0.35) {
+          if (h.player) this.onPlayerHit?.();
           w.down = 2.8;
           P.lying(w.pose);
         }

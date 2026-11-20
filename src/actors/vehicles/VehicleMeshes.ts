@@ -16,6 +16,8 @@ export interface VehicleVisual {
   wheelSpinners: THREE.Object3D[];
   headMat: THREE.MeshStandardMaterial;
   tailMat: THREE.MeshStandardMaterial;
+  /** Light-bar materials (police): flashed by the wanted system. */
+  sirenMats?: [THREE.MeshStandardMaterial, THREE.MeshStandardMaterial];
   /** Local positions of the headlight(s), for the night spotlight. */
   headlightAnchor: THREE.Vector3;
 }
@@ -437,6 +439,41 @@ function buildTaxi(v: VehicleVisual): void {
   v.headlightAnchor.set(0, 0.08, 2.05);
 }
 
+function buildPolice(v: VehicleVisual): void {
+  const r = v.root;
+  const white = paint(0xf2f2f0, 0.35, 0.3);
+  const blue = paint(0x1a3a8a, 0.4, 0.2);
+  box(r, white, 1.72, 0.66, 4.1, 0, 0.05, 0);
+  box(r, blue, 1.74, 0.16, 4.12, 0, 0.0, 0);
+  box(r, GLASS(), 1.6, 0.6, 2.3, 0, 0.66, -0.25, false);
+  box(r, white, 1.62, 0.08, 2.3, 0, 0.98, -0.25);
+  box(r, BLACK(), 1.76, 0.2, 0.14, 0, -0.22, 2.06);
+  box(r, BLACK(), 1.76, 0.2, 0.14, 0, -0.22, -2.06);
+  for (const x of [0.6, -0.6]) {
+    box(r, v.headMat, 0.34, 0.14, 0.05, x, 0.18, 2.06, false);
+    box(r, v.tailMat, 0.24, 0.18, 0.05, x * 1.1, 0.2, -2.06, false);
+  }
+  const red = new THREE.MeshStandardMaterial({ color: 0x550000, emissive: 0xff1010, emissiveIntensity: 0 });
+  const bl = new THREE.MeshStandardMaterial({ color: 0x000a55, emissive: 0x1040ff, emissiveIntensity: 0 });
+  box(r, BLACK(), 1.2, 0.08, 0.32, 0, 1.06, 0.1);
+  box(r, red, 0.5, 0.12, 0.28, 0.3, 1.15, 0.1, false);
+  box(r, bl, 0.5, 0.12, 0.28, -0.3, 1.15, 0.1, false);
+  v.sirenMats = [red, bl];
+  const side = signTexture(
+    [
+      { text: 'POLICE', size: 70, color: '#1a3a8a', font: 'display', weight: 400 },
+      { text: 'पोलीस · MUMBAI', size: 36, color: '#1a3a8a' },
+    ],
+    '#f2f2f0',
+    512,
+    192,
+    { grime: false },
+  );
+  plane(r, side, 1.6, 0.6, 0.865, 0.22, 0, Math.PI / 2);
+  plane(r, side, 1.6, 0.6, -0.865, 0.22, 0, -Math.PI / 2);
+  v.headlightAnchor.set(0, 0.18, 2.1);
+}
+
 /**
  * Merge every static (non-wheel, non-light) mesh of a vehicle by material:
  * a vehicle drops from ~40 draw calls to ~8.
@@ -450,7 +487,13 @@ function mergeStatic(v: VehicleVisual): void {
   for (const child of [...v.root.children]) {
     if (keep.has(child) || !(child instanceof THREE.Mesh) || child.children.length) continue;
     const mat = child.material as THREE.Material;
-    if (mat === v.headMat || mat === v.tailMat || (mat as THREE.MeshStandardMaterial).map) continue;
+    if (
+      mat === v.headMat ||
+      mat === v.tailMat ||
+      v.sirenMats?.includes(mat as THREE.MeshStandardMaterial) ||
+      (mat as THREE.MeshStandardMaterial).map
+    )
+      continue;
     const g = child.geometry
       .clone()
       .applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, child.matrixWorld));
@@ -505,6 +548,9 @@ export function buildVehicleVisual(profile: VehicleProfile, seed: number): Vehic
       break;
     case 'taxi':
       buildTaxi(v);
+      break;
+    case 'police':
+      buildPolice(v);
       break;
     default: {
       const [hx, hy, hz] = profile.chassis.halfExtents;

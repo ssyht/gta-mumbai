@@ -1,0 +1,32 @@
+{
+  "id": "meter-down",
+  "title": "Meter Down",
+  "dev": "मीटर डाउन",
+  "giver": "Salim, taxi union",
+  "brief": "Salim is sick and his regular fare is waiting at the Taj. Take his kaali-peeli and keep the customer happy.",
+  "start": "colabaTaxiStand",
+  "reward": 3000,
+  "objectives": [
+    {
+      "type": "enterVehicle",
+      "profile": "taxi",
+      "text": "Take Salim's taxi",
+      "spawn": { "profile": "taxi", "place": "colabaTaxiStand" }
+    },
+    {
+      "type": "reach",
+      "place": "tajFront",
+      "radius": 14,
+      "inVehicle": true,
+      "text": "Pick up the guest at the Taj Mahal Palace"
+    },
+    {
+      "type": "reach",
+      "place": "bazaarWest",
+      "radius": 16,
+      "inVehicle": true,
+      "timeLimit": 180,
+      "text": "Drop the guest at the bazaar for shopping"
+    }
+  ]
+}

@@ -13,6 +13,11 @@ export interface GameState {
     seatType: SeatType | null;
   };
   fare: { active: boolean; rupees: number; km: number };
+  stats: { health: number; armour: number; money: number };
+  wanted: { level: number; evading: boolean };
+  weapon: 'fists' | 'pistol';
+  ammo: number;
+  missions: { active: string | null; completed: string[] };
 }
 
 type Listener<T> = (state: Readonly<T>, prev: Readonly<T>) => void;
@@ -48,5 +53,10 @@ export function createGameStore(): Store<GameState> {
     paused: false,
     player: { mode: 'onFoot', vehicleId: null, seatId: null, seatType: null },
     fare: { active: false, rupees: 0, km: 0 },
+    stats: { health: 100, armour: 0, money: 500 },
+    wanted: { level: 0, evading: false },
+    weapon: 'fists',
+    ammo: 60,
+    missions: { active: null, completed: [] },
   });
 }

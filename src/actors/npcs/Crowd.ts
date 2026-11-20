@@ -26,9 +26,11 @@ export interface CrowdHazard {
   velocity: THREE.Vector3;
   /** Rough radius of the vehicle footprint. */
   radius: number;
+  /** Driven by the player (hits are crimes). */
+  player?: boolean;
 }
 
-type Mode = 'walk' | 'idle' | 'cross' | 'dodge' | 'down';
+type Mode = 'walk' | 'idle' | 'cross' | 'dodge' | 'down' | 'flee';
 
 interface Person {
   rig: HumanoidRig;
@@ -60,6 +62,8 @@ const DRAPES = [0xe64a19, 0xd81b60, 0x7b1fa2, 0x00897b, 0xffb300, 0x3949ab, 0xc2
 export class Crowd {
   private readonly people: Person[] = [];
   private density = 1;
+  /** Called when the player's vehicle knocks someone down. */
+  onPlayerHit: (() => void) | null = null;
   private readonly UP = new THREE.Vector3(0, 1, 0);
 
   constructor(
@@ -119,6 +123,61 @@ export class Crowd {
     this.density = d;
   }
 
+  /** Knock down anyone within `range` in front of `at` (punch). Returns how many were hit. */
+  strike(at: THREE.Vector3, dir: THREE.Vector3, range: number): number {
+    let n = 0;
+    for (const p of this.people) {
+      if (!p.rig.root.visible || p.mode === 'down') continue;
+      const dx = p.pos.x - at.x;
+      const dz = p.pos.z - at.z;
+      const d = Math.hypot(dx, dz);
+      if (d < range && (dx * dir.x + dz * dir.z) / Math.max(d, 0.01) > 0.4) {
+        this.knockDown(p, Math.atan2(-dir.x, -dir.z));
+        n++;
+      }
+    }
+    return n;
+  }
+
+  /** Bullet hit test: nearest person along the ray (body cylinder), or -1. */
+  shoot(origin: THREE.Vector3, dir: THREE.Vector3, maxDist: number): number {
+    let best = -1;
+    let hit: Person | null = null;
+    for (const p of this.people) {
+      if (!p.rig.root.visible || p.mode === 'down') continue;
+      const t =
+        (p.pos.x - origin.x) * dir.x + (p.pos.y + 1 - origin.y) * dir.y + (p.pos.z - origin.z) * dir.z;
+      if (t < 0 || t > maxDist || (best >= 0 && t > best)) continue;
+      const cx = origin.x + dir.x * t - p.pos.x;
+      const cy = origin.y + dir.y * t - (p.pos.y + 1);
+      const cz = origin.z + dir.z * t - p.pos.z;
+      if (cx * cx + cz * cz < 0.16 && Math.abs(cy) < 0.95) {
+        best = t;
+        hit = p;
+      }
+    }
+    if (hit) this.knockDown(hit, Math.atan2(-dir.x, -dir.z), 6);
+    return best;
+  }
+
+  /** Everyone near a gunshot or explosion runs. */
+  panic(at: THREE.Vector3, radius: number): void {
+    for (const p of this.people) {
+      if (!p.rig.root.visible || p.mode === 'down') continue;
+      if (p.pos.distanceTo(at) > radius) continue;
+      p.mode = 'flee';
+      p.timer = 5 + Math.random() * 4;
+      p.dir = p.pos.x >= at.x ? 1 : -1;
+    }
+  }
+
+  private knockDown(p: Person, yaw: number, time = 3): void {
+    p.mode = 'down';
+    p.timer = time;
+    p.yaw = yaw;
+    P.lying(p.pose);
+  }
+
   get activeCount(): number {
     return this.people.filter((p) => p.rig.root.visible).length;
   }
@@ -141,6 +200,7 @@ export class Crowd {
           const dist = Math.hypot(dx, dz);
           const speed = h.velocity.length();
           if (speed > 4 && dist < h.radius + 0.35) {
+            if (h.player) this.onPlayerHit?.();
             p.mode = 'down';
             p.timer = 2.8;
             p.yaw = Math.atan2(h.velocity.x, h.velocity.z) + Math.PI;
@@ -217,6 +277,18 @@ export class Crowd {
           } else if (p.timer < 0) {
             p.timer = 5 + Math.random() * 10;
             p.yaw += (Math.random() - 0.5) * 1.2; // look around
+          }
+          break;
+        }
+        case 'flee': {
+          // Run along the pavement away from the danger.
+          p.pos.x += p.dir * 4.2 * dt;
+          if (p.pos.x > a.x1 || p.pos.x < a.x0) p.dir = (p.dir * -1) as 1 | -1;
+          p.yaw = Math.atan2(p.dir, 0);
+          P.locomotion(p.target, (p.phase += dt * 9), 5.5);
+          if (p.timer < 0) {
+            p.mode = 'walk';
+            p.timer = 6;
           }
           break;
         }

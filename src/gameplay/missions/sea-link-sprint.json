@@ -1,0 +1,24 @@
+{
+  "id": "sea-link-sprint",
+  "title": "Sea Link Sprint",
+  "dev": "सी लिंक स्प्रिंट",
+  "giver": "Rhea, Bandra racer",
+  "brief": "Midnight, empty bridge, one car. Worli to Bandra across the Sea Link before the clock runs out.",
+  "start": "seaLinkSouth",
+  "reward": 8000,
+  "objectives": [
+    {
+      "type": "enterVehicle",
+      "profile": "hatchback",
+      "text": "Get in Rhea's car",
+      "spawn": { "profile": "hatchback", "place": "seaLinkSouth" }
+    },
+    {
+      "type": "race",
+      "inVehicle": true,
+      "timeLimit": 75,
+      "checkpoints": ["seaLinkMid", "seaLinkNorth"],
+      "text": "Cross the Sea Link"
+    }
+  ]
+}

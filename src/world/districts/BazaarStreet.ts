@@ -39,6 +39,7 @@ export interface BazaarStreet {
   parked: ParkedSpot[];
   crowdArea: CrowdArea;
   idleSpots: THREE.Vector3[];
+  shopFronts: Array<{ pos: THREE.Vector3; name: string; restaurant: boolean }>;
 }
 
 const SHOPS: SignSpec[] = [
@@ -378,5 +379,6 @@ export function buildBazaarStreet(
       groundY: pavY,
     },
     idleSpots,
+    shopFronts: kit.dressing.shopFronts,
   };
 }

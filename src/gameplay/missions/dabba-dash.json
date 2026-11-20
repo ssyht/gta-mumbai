@@ -1,0 +1,25 @@
+{
+  "id": "dabba-dash",
+  "title": "Dabba Dash",
+  "dev": "डब्बा डॅश",
+  "giver": "Ganpat, dabbawala",
+  "brief": "Ganpat's bicycle has a flat. Get his tiffins to the Gateway of India before lunch goes cold.",
+  "start": "bazaarWest",
+  "reward": 2500,
+  "objectives": [
+    {
+      "type": "enterVehicle",
+      "profile": "scooter",
+      "text": "Get on the delivery scooter",
+      "spawn": { "profile": "scooter", "place": "bazaarScooter" }
+    },
+    {
+      "type": "reach",
+      "place": "gateway",
+      "radius": 18,
+      "inVehicle": true,
+      "timeLimit": 210,
+      "text": "Deliver the tiffins to the Gateway of India"
+    }
+  ]
+}

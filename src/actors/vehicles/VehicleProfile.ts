@@ -15,6 +15,7 @@ import scooter from './profiles/scooter.json';
 import bestBus from './profiles/best-bus.json';
 import lorry from './profiles/lorry.json';
 import taxi from './profiles/taxi.json';
+import police from './profiles/police.json';
 
 export type Vec3T = [number, number, number];
 export type SeatType = 'driver' | 'passenger' | 'standing' | 'doorHang';
@@ -115,7 +116,7 @@ export function validateProfile(p: VehicleProfile): VehicleProfile {
 }
 
 export const VEHICLE_PROFILES: Record<string, VehicleProfile> = Object.fromEntries(
-  ([hatchback, autoRickshaw, scooter, bestBus, lorry, taxi] as VehicleProfile[]).map((p) => [
+  ([hatchback, autoRickshaw, scooter, bestBus, lorry, taxi, police] as VehicleProfile[]).map((p) => [
     p.id,
     validateProfile(p),
   ]),

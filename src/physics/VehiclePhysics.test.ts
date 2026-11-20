@@ -34,7 +34,15 @@ describe('vehicle physics (Rapier DynamicRayCastVehicleController)', () => {
   });
 
   it('has all M1 vehicles', () => {
-    expect(ids.sort()).toEqual(['auto-rickshaw', 'best-bus', 'hatchback', 'lorry', 'scooter', 'taxi']);
+    expect(ids.sort()).toEqual([
+      'auto-rickshaw',
+      'best-bus',
+      'hatchback',
+      'lorry',
+      'police',
+      'scooter',
+      'taxi',
+    ]);
   });
 
   for (const id of Object.keys(VEHICLE_PROFILES)) {

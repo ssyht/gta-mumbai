@@ -1,0 +1,18 @@
+{
+  "id": "bunder-race",
+  "title": "Apollo Bunder Run",
+  "dev": "अपोलो बंदर रेस",
+  "giver": "The Causeway boys",
+  "brief": "A street race from the bazaar to the Gateway, through the checkpoints. Any wheels will do.",
+  "start": "connectorTop",
+  "reward": 4000,
+  "objectives": [
+    {
+      "type": "race",
+      "inVehicle": true,
+      "timeLimit": 150,
+      "checkpoints": ["connectorBottom", "colabaNorth", "tajFront", "gateway"],
+      "text": "Hit every checkpoint"
+    }
+  ]
+}

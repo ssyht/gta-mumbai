@@ -45,6 +45,15 @@ export const OUTFITS: Record<string, Outfit> = {
     hair: 0x222222,
     drape: 0xf3ead8,
   },
+  police: {
+    skin: 0x7a4a24,
+    top: 0xb59a5a,
+    bottom: 0xa88d50,
+    shoes: 0x1a1a1a,
+    hair: 0x111111,
+    cap: 0x1a237e,
+    belt: 0x3b2a1a,
+  },
   dabbawala: {
     skin: 0x7b4a22,
     top: 0xffffff,

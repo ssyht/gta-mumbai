@@ -20,6 +20,7 @@ export interface CameraContext {
   sensitivity: number;
   invertY: boolean;
   excludeBody: RAPIER.RigidBody | null;
+  aiming?: boolean;
 }
 
 const _target = new THREE.Vector3();
@@ -100,11 +101,16 @@ export class PlayerCamera {
         dist = cam.distance * (this.distance / 4.2) + speed * 0.05;
         fov = cam.fov + Math.min(14, speed * 0.32);
       } else {
+        if (ctx.aiming) {
+          dist = 1.9;
+          fov = 50;
+        }
         _target.copy(ctx.playerPos);
-        _target.y += ctx.crouched ? 1.15 : 1.55;
+        _target.y += ctx.crouched ? 1.15 : ctx.aiming ? 1.62 : 1.55;
         // Over-the-shoulder offset (to the character's right).
-        _target.x += -Math.cos(this.yaw) * 0.38;
-        _target.z += Math.sin(this.yaw) * 0.38;
+        const shoulder = ctx.aiming ? 0.62 : 0.38;
+        _target.x += -Math.cos(this.yaw) * shoulder;
+        _target.z += Math.sin(this.yaw) * shoulder;
       }
 
       if (!this.initialised) {

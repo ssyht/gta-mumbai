@@ -1,0 +1,25 @@
+{
+  "id": "hot-wheels",
+  "title": "Hot Wheels",
+  "dev": "गरम गाडी",
+  "giver": "Pinto, garage owner",
+  "brief": "Pinto wants a police SUV for a film shoot. Don't ask. Steal it, then lose the cops.",
+  "start": "trackGarage",
+  "reward": 6000,
+  "objectives": [
+    {
+      "type": "enterVehicle",
+      "profile": "police",
+      "text": "Steal the police SUV",
+      "spawn": { "profile": "police", "place": "trackPolice" }
+    },
+    { "type": "escape", "wanted": 3, "text": "Lose the police" },
+    {
+      "type": "reach",
+      "place": "trackGarage",
+      "radius": 14,
+      "inVehicle": true,
+      "text": "Bring the SUV to Pinto's garage"
+    }
+  ]
+}

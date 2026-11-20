@@ -69,6 +69,8 @@ export interface StreetDressing {
   /** Side walls facing gullies, for murals. */
   gullyWalls: Array<{ center: THREE.Vector3; normal: THREE.Vector3; width: number; height: number }>;
   antennas: number[];
+  /** Shop fronts that can be robbed (fictional businesses). */
+  shopFronts: Array<{ pos: THREE.Vector3; name: string; restaurant: boolean }>;
 }
 
 const GROUND_H = 4.0;
@@ -257,6 +259,7 @@ export class StreetBuildings {
     fairy: [],
     gullyWalls: [],
     antennas: [],
+    shopFronts: [],
   };
   private readonly rnd = mulberry32(2019);
   private band = 0;
@@ -436,6 +439,13 @@ export class StreetBuildings {
         if (rnd() < 0.5) this.dressing.practicals.push({ pos: toWorld(xc, 3.0, -0.4), kind: 'bulb' });
       }
       // Signboard.
+      if (shop && !closed) {
+        this.dressing.shopFronts.push({
+          pos: toWorld(xc, 0.18, 0.9),
+          name: shop.text,
+          restaurant: /CAFE|KHANA|SWEET|BAKERY|JUICE|CHAI|VADA|PAAN/i.test(shop.text),
+        });
+      }
       if (shop) {
         const r = this.atlas.add(shop, Math.floor(rnd() * 1e6));
         P.signs.quad(

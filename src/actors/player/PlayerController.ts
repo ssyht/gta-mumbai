@@ -79,6 +79,12 @@ export class PlayerController {
   walkMode = false;
   seat: { vehicle: Vehicle; seat: SeatRuntime } | null = null;
   onRagdoll: ((speed: number) => void) | null = null;
+  /** Holding a pistol up (RMB): upper body overlays the aim pose, body faces the camera. */
+  aiming = false;
+  /** Seconds left on the current punch animation. */
+  punchTimer = 0;
+  /** Small pistol model in the right hand. */
+  readonly pistol: THREE.Mesh;
   onFellInSea: (() => void) | null = null;
 
   private readonly prevPosition = new THREE.Vector3();
@@ -130,6 +136,13 @@ export class PlayerController {
     this.cc.setApplyImpulsesToDynamicBodies(false);
     scene.add(this.rig.root);
     P.idle(this.pose, 0);
+    this.pistol = new THREE.Mesh(
+      new THREE.BoxGeometry(0.045, 0.12, 0.2),
+      new THREE.MeshStandardMaterial({ color: 0x1b1b1b, metalness: 0.7, roughness: 0.35 }),
+    );
+    this.pistol.position.set(0, -0.3, 0.06);
+    this.pistol.visible = false;
+    this.rig.joints.elbowR.add(this.pistol);
   }
 
   get rigidBody(): RAPIER.RigidBody {
@@ -190,7 +203,11 @@ export class PlayerController {
     const k = 1 - Math.exp(-accel * dt);
     this.vel.x += (tx - this.vel.x) * k;
     this.vel.z += (tz - this.vel.z) * k;
-    if (mag > 0.05) {
+    if (this.aiming) {
+      let d = camYaw - this.yaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      this.yaw += d * Math.min(1, dt * 20);
+    } else if (mag > 0.05) {
       const want = Math.atan2(wx, wz);
       let d = want - this.yaw;
       d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -566,7 +583,20 @@ export class PlayerController {
           else if (s < 0.2) P.idle(this.target, this.animT);
           else P.locomotion(this.target, this.phase, s);
         }
-        P.blendPose(this.pose, this.target, this.state === 'gettingUp' ? 1 - Math.exp(-dt * 4) : k);
+        if (this.state === 'onFoot') {
+          if (this.aiming) P.overlayAim(this.target);
+          else if (this.punchTimer > 0) P.overlayPunch(this.target, 1 - this.punchTimer / 0.4);
+        }
+        this.punchTimer = Math.max(0, this.punchTimer - dt);
+        P.blendPose(
+          this.pose,
+          this.target,
+          this.state === 'gettingUp'
+            ? 1 - Math.exp(-dt * 4)
+            : this.punchTimer > 0 || this.aiming
+              ? 1 - Math.exp(-dt * 25)
+              : k,
+        );
         break;
       }
       case 'transition':
