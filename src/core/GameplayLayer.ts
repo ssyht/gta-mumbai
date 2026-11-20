@@ -154,6 +154,30 @@ export class GameplayLayer {
       e.player.startRagdoll(new THREE.Vector3(0, 0, 0), 0.2);
       this.missions.fail('You were hospitalised');
     });
+    // Fall damage: starts at 4 m, lethal at 15 m (GAME_SPEC §5.2).
+    e.player.onLanded = (h) => this.stats.damage(Math.min(100, ((h - 4) / 11) * 100), 'fall');
+    e.player.onDrowning = (dps) => this.stats.damage(dps / 60, 'drowning');
+    bus.on('vehicle:exploded', ({ vehicleId, at }) => {
+      const p = new THREE.Vector3(at.x, at.y, at.z);
+      e.audio.explosion(at);
+      for (const c of crowds) {
+        c.strike(p, new THREE.Vector3(0, 0, 1), 9);
+        c.strike(p, new THREE.Vector3(0, 0, -1), 9);
+        c.panic(p, 60);
+      }
+      const me = e.player.position;
+      const d = me.distanceTo(p);
+      if (d < 10 && e.player.state !== 'seated') {
+        const dir = me.clone().sub(p).setY(0).normalize();
+        e.player.startRagdoll(dir.multiplyScalar(9 * (1 - d / 10)).setY(5), 3);
+        this.stats.damage(70 * (1 - d / 10), 'explosion');
+      } else if (d < 6 && e.player.seat?.vehicle.id !== vehicleId) {
+        this.stats.damage(30, 'explosion');
+      }
+      if (e.player.seat?.vehicle.id === vehicleId) {
+        this.stats.damage(100, 'explosion');
+      }
+    });
     bus.on('radio:changed', ({ station }) =>
       bus.emit('ui:toast', { text: station ? `📻 ${station}` : 'Radio off' }),
     );
@@ -249,6 +273,9 @@ export class GameplayLayer {
     e.sky.weatherRain = this.weather.rain;
     e.sky.weatherHaze = this.weather.haze;
     e.sky.weatherFlash = this.weather.flash;
+    // Wet roads: tyre grip x0.75 (GAME_SPEC §4.3).
+    const grip = 1 - 0.25 * this.weather.wetness;
+    for (const v of e.vehicles.list) v.physics.gripScale = grip;
     this.radio.volume = e.settings.muted ? 0 : e.settings.masterVolume;
     this.radio.update(dt, !!e.player.seat, e.settings.muted);
 
@@ -298,7 +325,7 @@ export class GameplayLayer {
       for (const sp of this.missions.startPoints) blips.push({ x: sp.pos.x, z: sp.pos.z, kind: 'mission' });
     blips.push({ x: e.colaba.gateway.x, z: e.colaba.gateway.z, kind: 'landmark', label: '⛩' });
     this.minimap.update(dt, me, e.player.yaw, e.cam.yaw, blips);
-    this.status.update(dt, e.player.aiming, this.wanted.bustProgress);
+    this.status.update(dt, e.player.aiming, this.wanted.bustProgress, e.player.stamina);
 
     this.saveTimer -= dt;
     if (this.saveTimer <= 0) {

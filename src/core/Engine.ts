@@ -34,6 +34,7 @@ import { PauseMenu } from '../ui/PauseMenu';
 import { DevPanel } from '../ui/DevPanel';
 import { parseClock } from './Settings';
 import { GameplayLayer } from './GameplayLayer';
+import { Particles } from '../render/Particles';
 
 export interface EngineOptions {
   canvas: HTMLCanvasElement;
@@ -76,6 +77,7 @@ export class Engine {
   /** Named places added by later districts (missions reference them). */
   extraPlaces: Record<string, THREE.Vector3> = {};
   game!: GameplayLayer;
+  particles!: Particles;
   interaction!: InteractionSystem;
   audio!: AudioSystem;
   hud!: Hud;
@@ -179,6 +181,8 @@ export class Engine {
 
     onStatus('Parking vehicles…');
     this.vehicles = new VehicleManager(this.scene, this.physics, this.bus);
+    this.particles = new Particles(this.scene);
+    this.vehicles.particles = this.particles;
     const P = this.track.parking;
     for (const p of [...this.bazaar.parked, ...this.colaba.parked])
       this.vehicles.spawn(p.profile, p.id, p.pos, p.yaw);
@@ -522,6 +526,7 @@ export class Engine {
       pv && this.player.seat?.seat.def.type === 'driver' ? pv : null,
     );
     this.game.update(dt, running);
+    if (!state.paused) this.particles.update(dt);
     this.hud.update(
       dt,
       this.tod.clockMinutes,

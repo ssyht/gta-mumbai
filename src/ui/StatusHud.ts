@@ -32,7 +32,8 @@ export class StatusHud {
       return e;
     };
     this.bars = mk('bars');
-    this.bars.innerHTML = '<div class="hp"><i></i></div><div class="ar"><i></i></div>';
+    this.bars.innerHTML =
+      '<div class="hp"><i></i></div><div class="ar"><i></i></div><div class="st"><i></i></div>';
     this.money = mk('money');
     this.stars = mk('stars');
     this.weapon = mk('weapon');
@@ -76,7 +77,10 @@ export class StatusHud {
       e.style.display = v ? '' : 'none';
   }
 
-  update(dt: number, aiming: boolean, bustProgress: number): void {
+  update(dt: number, aiming: boolean, bustProgress: number, stamina = 100): void {
+    const st = this.bars.querySelector('.st') as HTMLElement;
+    st.style.opacity = stamina < 99.5 ? '1' : '0';
+    (st.querySelector('i') as HTMLElement).style.width = `${stamina}%`;
     const s = this.store.get();
     const key = `${Math.round(s.stats.health)}|${Math.round(s.stats.armour)}|${s.stats.money}|${s.wanted.level}|${s.wanted.evading}|${s.weapon}|${s.ammo}`;
     if (key !== this.lastKey) {

@@ -11,7 +11,10 @@ import type { Npc } from '../actors/npcs/Npc';
 import { WaypointDriver } from '../ai/WaypointDriver';
 import { BEST_MIN_TICKET, FareMeter } from './FareMeter';
 
-const BAIL_SPEED = 3; // m/s: faster than this, getting out means jumping out
+/** GAME_SPEC §6.3: tap exits normally; above 30 km/h it's a bail-out dive. */
+const BAIL_SPEED = 8.3;
+/** Carjacking needs the car (nearly) stopped: under 5 km/h. */
+const CARJACK_SPEED = 1.4;
 const REACH = 2.4; // m from the chassis to interact
 const PASSENGER_ORDER: SeatType[] = ['passenger', 'standing', 'doorHang'];
 const SEAT_LABEL: Record<SeatType, string> = {
@@ -85,7 +88,11 @@ export class InteractionSystem {
       );
     this.prompt(parts.length ? parts.join('     ') : null);
 
-    if (this.input.wasPressed('interact')) this.enterAsDriver(v);
+    const tooFast =
+      !!driver.occupant && driver.occupant.kind === 'npc' && Math.abs(v.physics.speed) > CARJACK_SPEED;
+    if (tooFast && parts.length) parts[0] = `${v.name} is moving: step in front of it to stop it`;
+    if (tooFast) this.prompt(parts.join('     '));
+    if (this.input.wasPressed('interact') && !tooFast) this.enterAsDriver(v);
     else if (this.input.wasPressed('passenger') && free) this.enterAsPassenger(v, free);
   }
 

@@ -451,6 +451,24 @@ export class AudioSystem {
     src.stop(t + 3.6);
   }
 
+  /** Deep boom for explosions. */
+  explosion(at: { x: number; y: number; z: number }): void {
+    if (!this.started) return;
+    this.gunshot(at);
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noise;
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 260;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(1.2, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 2.2);
+    src.connect(lp).connect(g).connect(this.listener.getInput());
+    src.start(t);
+    src.stop(t + 2.3);
+  }
+
   get context(): AudioContext {
     return this.ctx;
   }
@@ -463,10 +481,10 @@ export class AudioSystem {
       const top = playerVehicle.profile.engine.topSpeedKmh / 3.6;
       const thr = playerVehicle.physics.controls.throttle;
       // Fake gearbox: rpm saws up through 4 gears.
-      const gears = e.kind === 'scooter' ? 1 : 4;
-      const g = Math.min(gears - 1, Math.floor((speed / top) * gears));
-      const inGear = (speed / top) * gears - g;
-      const rpm = 0.18 + 0.82 * (gears === 1 ? speed / top : inGear * 0.7 + 0.25);
+      // Real engine rpm from the gearbox (GAME_SPEC §12.3: engine synthesis driven by RPM).
+      const rpm = 0.18 + 0.82 * playerVehicle.physics.rpmNorm;
+      void top;
+      void speed;
       const base = e.kind === 'diesel' ? 38 : e.kind === 'auto' ? 52 : e.kind === 'scooter' ? 70 : 60;
       const t = this.ctx.currentTime;
       e.osc.frequency.setTargetAtTime(base + rpm * base * 2.4, t, 0.05);

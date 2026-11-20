@@ -513,6 +513,7 @@ function mergeStatic(v: VehicleVisual): void {
     );
     if (!merged) continue;
     const mesh = new THREE.Mesh(merged, mat);
+    mesh.userData.deformable = true;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     v.root.add(mesh);

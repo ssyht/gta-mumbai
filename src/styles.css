@@ -419,6 +419,14 @@ kbd {
 #bars .ar i {
   background: #5ac8fa;
 }
+#bars .st {
+  grid-column: 1 / -1;
+  height: 5px;
+  transition: opacity 0.4s;
+}
+#bars .st i {
+  background: #ffcf1a;
+}
 #bars.low .hp i {
   background: #ff3b30;
   animation: pulse 0.8s infinite alternate;

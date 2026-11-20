@@ -175,6 +175,7 @@ export class WantedSystem {
     const p = pos.clone();
     p.y = -wheel.position[1] + wheel.radius + 0.15 + Math.max(0, pos.y);
     u.v.setActive(true);
+    u.v.repair();
     u.v.physics.reset(p, yaw);
     u.v.snapHistory();
     u.v.ai = u.driver;

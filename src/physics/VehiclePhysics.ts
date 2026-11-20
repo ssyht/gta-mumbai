@@ -24,6 +24,24 @@ export type VehicleTuning = Pick<
 };
 
 const UP = new Vector3(0, 1, 0);
+
+/**
+ * Per-class drivetrain + aero (GAME_SPEC §6.1): gear count, redline, drag and
+ * downforce coefficients (N per (m/s)²), and how tough the body is.
+ */
+const DRIVETRAIN: Record<
+  string,
+  { gears: number; redline: number; drag: number; downforce: number; toughness: number }
+> = {
+  car: { gears: 5, redline: 6200, drag: 0.42, downforce: 0.12, toughness: 1 },
+  auto: { gears: 4, redline: 5600, drag: 0.4, downforce: 0, toughness: 0.8 },
+  twoWheeler: { gears: 1, redline: 8500, drag: 0.22, downforce: 0, toughness: 0.7 },
+  bus: { gears: 5, redline: 2600, drag: 3.2, downforce: 0, toughness: 3 },
+  truck: { gears: 6, redline: 2500, drag: 2.6, downforce: 0, toughness: 2.6 },
+};
+const IDLE_RPM = 800;
+/** Velocity change in one 60 Hz step above this (m/s) counts as a crash. */
+const IMPACT_DV = 2.5;
 const _q = new Quaternion();
 const _fwd = new Vector3();
 const _left = new Vector3();
@@ -44,6 +62,19 @@ export class VehiclePhysics {
   steerAngle = 0;
   /** Fired once each time a heavy vehicle comes to rest under braking. */
   onAirBrake: (() => void) | null = null;
+  /** Crash callback: Δv (m/s) and the impact direction in the vehicle frame (pointing into the body). */
+  onImpact: ((dv: number, localDir: Vector3) => void) | null = null;
+  /** Body/engine health 0..1000 (GAME_SPEC §6.2). */
+  health = 1000;
+  /** Weather/surface grip multiplier (wet asphalt ≈ 0.75). */
+  gripScale = 1;
+  gear = 1;
+  rpm = IDLE_RPM;
+  private shiftTimer = 0;
+  private stallTimer = 0;
+  private appliedGrip = 1;
+  private readonly prevVel = new Vector3();
+  private hasPrev = false;
 
   private readonly physics: PhysicsWorld;
   private readonly profile: VehicleProfile;
@@ -189,13 +220,40 @@ export class VehiclePhysics {
     const top = t.engine.topSpeedKmh / 3.6;
     const topRev = t.engine.reverseTopSpeedKmh / 3.6;
 
+    this.detectImpact();
+    const dtc = DRIVETRAIN[this.profile.class] ?? DRIVETRAIN.car!;
+    // Automatic gearbox: rpm from speed within the current gear's band.
+    const gearTop = (g: number): number => top * Math.pow(g / dtc.gears, 0.85);
+    const absV = Math.abs(v);
+    this.rpm = IDLE_RPM + (dtc.redline - IDLE_RPM) * Math.min(1, absV / gearTop(this.gear));
+    this.shiftTimer = Math.max(0, this.shiftTimer - dt);
+    if (this.shiftTimer === 0 && dtc.gears > 1) {
+      if (this.rpm > dtc.redline * 0.93 && this.gear < dtc.gears) {
+        this.gear++;
+        this.shiftTimer = 0.22;
+      } else if (this.gear > 1 && absV < gearTop(this.gear - 1) * 0.75) {
+        this.gear--;
+        this.shiftTimer = 0.12;
+      }
+    }
+    const rpmT = (this.rpm - IDLE_RPM) / (dtc.redline - IDLE_RPM);
+    const torque = 0.62 + 0.38 * Math.sin(Math.PI * Math.min(1, rpmT * 1.1 + 0.05));
+    const gearMul = dtc.gears > 1 ? 1.35 - (0.55 * (this.gear - 1)) / (dtc.gears - 1) : 1;
+    // Badly damaged engines stall now and then.
+    this.stallTimer = Math.max(0, this.stallTimer - dt);
+    if (this.health < 150 && this.stallTimer === 0 && Math.random() < dt * 0.25) this.stallTimer = 1.2;
+    const enginePower =
+      this.health <= 0
+        ? 0
+        : (this.shiftTimer > 0 ? 0.2 : 1) * (this.stallTimer > 0 ? 0 : 1) * torque * gearMul;
+
     let engine = 0;
     let brake = 0;
     const thr = Math.max(0, Math.min(1, c.throttle));
     const brk = Math.max(0, Math.min(1, c.brake));
     if (thr > 0.02) {
       if (v < -0.8) brake = t.engine.brakeForce * thr;
-      else engine = t.engine.force * thr * Math.max(0, Math.min(1, (top - v) / (top * 0.12)));
+      else engine = t.engine.force * enginePower * thr * Math.max(0, Math.min(1, (top - v) / (top * 0.12)));
     }
     if (brk > 0.02) {
       if (v > 0.8) {
@@ -205,7 +263,12 @@ export class VehiclePhysics {
         // Come to a full stop and hold briefly before reversing.
         this.stopHold += dt;
         if (this.stopHold < 0.35 && v > -0.3) brake = t.engine.brakeForce * brk;
-        else engine = -t.engine.reverseForce * brk * Math.max(0, Math.min(1, (topRev + v) / (topRev * 0.3)));
+        else
+          engine =
+            -t.engine.reverseForce *
+            (this.health <= 0 ? 0 : 1) *
+            brk *
+            Math.max(0, Math.min(1, (topRev + v) / (topRev * 0.3)));
       }
     } else {
       this.stopHold = 0;
@@ -229,11 +292,18 @@ export class VehiclePhysics {
       // Handbrake turns: rear tyres lose some side grip.
       ctrl.setWheelSideFrictionStiffness(
         i,
-        c.handbrake && w.handbrake ? t.tyres.sideFrictionStiffness * 0.45 : t.tyres.sideFrictionStiffness,
+        c.handbrake && w.handbrake ? t.tyres.sideFrictionStiffness * 0.4 : t.tyres.sideFrictionStiffness,
       );
     });
 
+    if (Math.abs(this.gripScale - this.appliedGrip) > 0.01) {
+      this.appliedGrip = this.gripScale;
+      this.profile.wheels.forEach((_w, i) =>
+        ctrl.setWheelFrictionSlip(i, t.tyres.frictionSlip * this.gripScale),
+      );
+    }
     ctrl.updateVehicle(dt, this.physics.R.QueryFilterFlags.EXCLUDE_SENSORS, Groups.WHEEL_QUERY);
+    this.applyAero(dt, dtc.drag, dtc.downforce);
 
     if (t.stability.uprightAssist > 0) this.applyUprightAssist(dt);
     if (t.stability.rollFactor > 0) this.applyCorneringRoll(dt, v);
@@ -250,6 +320,52 @@ export class VehiclePhysics {
     const up = this.uprightness;
     if (up < 0.35 && this.body.linvel().y ** 2 + v * v < 4) this.flippedTime += dt;
     else this.flippedTime = 0;
+    const lv = this.body.linvel();
+    this.prevVel.set(lv.x, lv.y, lv.z);
+    this.hasPrev = true;
+  }
+
+  /** Quadratic aerodynamic drag and a little downforce at speed. */
+  private applyAero(dt: number, drag: number, downforce: number): void {
+    const lv = this.body.linvel();
+    const sp = Math.hypot(lv.x, lv.z);
+    if (sp < 1) return;
+    const k = drag * sp * dt;
+    this.body.applyImpulse({ x: -lv.x * k, y: -downforce * sp * sp * dt, z: -lv.z * k }, true);
+  }
+
+  /**
+   * Crashes: a velocity change in one step far beyond what engine or brakes
+   * can do means we hit something. Damage scales with the hit and the class
+   * toughness (GAME_SPEC §6.2: damage = f(impulse)).
+   */
+  private detectImpact(): void {
+    if (!this.hasPrev) return;
+    const lv = this.body.linvel();
+    const dvx = lv.x - this.prevVel.x;
+    const dvy = lv.y - this.prevVel.y + 9.81 / 60;
+    const dvz = lv.z - this.prevVel.z;
+    const dv = Math.hypot(dvx, dvy, dvz);
+    if (dv < IMPACT_DV) return;
+    const tough = (DRIVETRAIN[this.profile.class] ?? DRIVETRAIN.car!).toughness;
+    this.health = Math.max(0, this.health - ((dv - IMPACT_DV) * 22) / tough);
+    // The body was pushed along Δv, so the hit came from the opposite side.
+    const inv = this.getQuaternion(_q).invert();
+    const local = new Vector3(-dvx, -dvy * 0.3, -dvz).applyQuaternion(inv).normalize();
+    this.onImpact?.(dv, local);
+  }
+
+  /** Engine speed 0 (idle) .. 1 (redline), for audio. */
+  get rpmNorm(): number {
+    const d = DRIVETRAIN[this.profile.class] ?? DRIVETRAIN.car!;
+    return Math.max(0, Math.min(1, (this.rpm - IDLE_RPM) / (d.redline - IDLE_RPM)));
+  }
+
+  /** Mod-shop / pool reset. */
+  repair(): void {
+    this.health = 1000;
+    this.stallTimer = 0;
+    this.gear = 1;
   }
 
   /**
@@ -314,6 +430,7 @@ export class VehiclePhysics {
     this.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     this.steerAngle = 0;
     this.flippedTime = 0;
+    this.hasPrev = false;
   }
 
   dispose(): void {

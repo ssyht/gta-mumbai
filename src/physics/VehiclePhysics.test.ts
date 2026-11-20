@@ -131,4 +131,44 @@ describe('vehicle physics (Rapier DynamicRayCastVehicleController)', () => {
     run(physics, v, 2);
     expect(v.uprightness).toBeGreaterThan(0.95);
   });
+
+  it('shifts up through the gears as it accelerates', async () => {
+    const physics = await flatWorld();
+    const v = spawn(physics, 'hatchback');
+    run(physics, v, 1);
+    expect(v.gear).toBe(1);
+    v.controls.throttle = 1;
+    run(physics, v, 8);
+    expect(v.gear).toBeGreaterThanOrEqual(3);
+    expect(v.rpm).toBeGreaterThan(800);
+  });
+
+  it('takes damage when it crashes into a wall', async () => {
+    const physics = await flatWorld();
+    physics.addStaticBox({ x: 0, y: 1, z: 40 }, { x: 10, y: 2, z: 0.5 });
+    const v = spawn(physics, 'hatchback');
+    let hits = 0;
+    v.onImpact = () => hits++;
+    run(physics, v, 1);
+    v.controls.throttle = 1;
+    run(physics, v, 7);
+    expect(hits).toBeGreaterThan(0);
+    expect(v.health).toBeLessThan(1000);
+  });
+
+  it('wet roads cut grip (GAME_SPEC: tyre grip x0.75 in rain): the car understeers', async () => {
+    const turned = async (grip: number): Promise<number> => {
+      const physics = await flatWorld();
+      const v = spawn(physics, 'hatchback');
+      v.gripScale = grip;
+      run(physics, v, 1);
+      v.controls.throttle = 1;
+      run(physics, v, 4);
+      const yaw0 = v.yaw;
+      v.controls.steer = 1;
+      run(physics, v, 1.5);
+      return Math.abs(Math.atan2(Math.sin(v.yaw - yaw0), Math.cos(v.yaw - yaw0)));
+    };
+    expect(await turned(0.45)).toBeLessThan(await turned(1));
+  });
 });

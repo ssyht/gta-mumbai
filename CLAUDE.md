@@ -259,6 +259,8 @@ Rules: systems talk through the EventBus. Gameplay state is in one store. No sys
 - (2026-11-18, M2 start) **Colaba from real OSM data.** `tools/osm-fetch.ts` (Overpass, bbox 18.912–18.926 N, 72.826–72.8375 E) → `tools/osm-to-world.ts` → `public/data/colaba.json` (153 KB: 329 roads, 969 footprints, coastline, 5 m land/sea mask). Kept at **1:1 scale** (a ~1.2 × 1.55 km crop) so the Gateway/Taj/Causeway read correctly; placed south of the test track (Gateway at world (941, 0, 867)) and linked by a connector road. Land = OSM coastline mask ("land on the left") plus a sea wall along the real coast. Gateway of India and Taj Mahal Palace (red domes) are greybox landmarks; OSM merges the 1972 Taj Tower into the palace footprint, so it is added as its own 21-storey block. Raw OSM stays in `tools/.cache` (git-ignored). Attribution shown on the title card. Scenery only, no 26/11 content.
 - (2026-11-18) Dynamic resolution now runs off measured CPU work + sampled WebGPU queue time instead of the rAF interval: browsers cap rAF at 30 Hz under power saving, which had been dropping resolution needlessly.
 
+- (2026-11-20) **Physics tuned to the user's GAME_SPEC.md** where it doesn't conflict with this file (CLAUDE.md wins on clock, renderer and stack). Player: walk/jog/sprint 1.6/3.8/6.5 m/s, jump 5.2 m/s, gravity 20, 12/16 m/s² accel/decel, 45° slope, 0.4 m step, stamina (drain 12/s, regen 20/s after 1.5 s), fall damage 4–15 m, ragdoll above 6 m, swimming with drowning when stamina runs out. Vehicles: per-class gearbox/RPM, drag + downforce, handbrake rear grip ×0.4, wet grip ×0.75, health 1000 with smoke/fire/explosion, mesh dents, skid marks. Bail-out above 30 km/h; carjack only under 5 km/h.
+
 ---
 
 ## 12. Reference links

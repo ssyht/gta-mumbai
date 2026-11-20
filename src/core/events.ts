@@ -12,6 +12,8 @@ export interface GameEvents {
   'player:respawned': Record<string, never>;
   'vehicle:horn': { vehicleId: string; on: boolean };
   'vehicle:airBrake': { vehicleId: string };
+  'vehicle:crashed': { vehicleId: string; dv: number };
+  'vehicle:exploded': { vehicleId: string; at: { x: number; y: number; z: number } };
   'vehicle:carjacked': { vehicleId: string };
   'vehicle:stopRequested': { vehicleId: string };
   'settings:changed': { settings: SettingsData; reloadNeeded: boolean };

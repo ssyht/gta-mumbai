@@ -6,7 +6,12 @@ import { HIP_HEIGHT, HumanoidRig } from '../rig/HumanoidRig';
 import * as P from '../rig/poses';
 import type { SeatRuntime, Vehicle } from '../vehicles/Vehicle';
 
-export type PlayerState = 'onFoot' | 'vault' | 'climb' | 'seated' | 'transition' | 'ragdoll' | 'gettingUp';
+export type PlayerState =
+  'onFoot' | 'vault' | 'climb' | 'seated' | 'transition' | 'ragdoll' | 'gettingUp' | 'swim';
+
+/** Sea surface height (the Arabian Sea and the harbour). */
+export const SEA_LEVEL = -1.4;
+const SWIM_FEET = SEA_LEVEL - 1.25;
 
 export interface PlayerTuning {
   walk: number;
@@ -86,6 +91,14 @@ export class PlayerController {
   /** Small pistol model in the right hand. */
   readonly pistol: THREE.Mesh;
   onFellInSea: (() => void) | null = null;
+  /** Landed after a fall of `height` metres (fall damage from 4 m, GAME_SPEC §5.2). */
+  onLanded: ((height: number) => void) | null = null;
+  /** Out of stamina while swimming: drowning damage per second. */
+  onDrowning: ((dps: number) => void) | null = null;
+  /** 0..100. Sprint drains 12/s, regenerates 20/s after 1.5 s. */
+  stamina = 100;
+  private staminaRest = 0;
+  private fallTop = 0;
 
   private readonly prevPosition = new THREE.Vector3();
   private readonly vel = new THREE.Vector3();
@@ -128,9 +141,9 @@ export class PlayerController {
     );
     this.cc = w.createCharacterController(0.03);
     this.cc.setUp({ x: 0, y: 1, z: 0 });
-    this.cc.enableAutostep(0.38, 0.2, false);
+    this.cc.enableAutostep(0.4, 0.2, false);
     this.cc.enableSnapToGround(0.35);
-    this.cc.setMaxSlopeClimbAngle((50 * Math.PI) / 180);
+    this.cc.setMaxSlopeClimbAngle((45 * Math.PI) / 180);
     this.cc.setMinSlopeSlideAngle((40 * Math.PI) / 180);
     this.cc.setSlideEnabled(true);
     this.cc.setApplyImpulsesToDynamicBodies(false);
@@ -168,6 +181,9 @@ export class PlayerController {
       case 'onFoot':
         this.stepOnFoot(dt, move, camYaw);
         break;
+      case 'swim':
+        this.stepSwim(dt, move, camYaw);
+        break;
       case 'vault':
       case 'climb':
         this.stepTraverse(dt);
@@ -196,13 +212,24 @@ export class PlayerController {
     const wx = fx * move.y - fz * move.x;
     const wz = fz * move.y + fx * move.x;
     const mag = Math.min(1, Math.hypot(wx, wz));
-    const speed = this.crouched ? t.crouch : this.walkMode ? t.walk : move.sprint ? t.sprint : t.jog;
+    const sprinting = move.sprint && mag > 0.1 && this.stamina > 0 && !this.crouched && !this.walkMode;
+    this.updateStamina(dt, sprinting ? 12 : 0);
+    const speed = this.crouched ? t.crouch : this.walkMode ? t.walk : sprinting ? t.sprint : t.jog;
     const tx = mag > 0.01 ? (wx / Math.hypot(wx, wz)) * speed * mag : 0;
     const tz = mag > 0.01 ? (wz / Math.hypot(wx, wz)) * speed * mag : 0;
-    const accel = this.grounded ? 12 : 2.5;
-    const k = 1 - Math.exp(-accel * dt);
-    this.vel.x += (tx - this.vel.x) * k;
-    this.vel.z += (tz - this.vel.z) * k;
+    // Linear acceleration 12 m/s², deceleration 16 m/s², much less in the air.
+    const speeding = tx * tx + tz * tz > this.vel.x * this.vel.x + this.vel.z * this.vel.z;
+    const a = (this.grounded ? (speeding ? 12 : 16) : 3) * dt;
+    const ex = tx - this.vel.x;
+    const ez = tz - this.vel.z;
+    const el = Math.hypot(ex, ez);
+    if (el <= a) {
+      this.vel.x = tx;
+      this.vel.z = tz;
+    } else {
+      this.vel.x += (ex / el) * a;
+      this.vel.z += (ez / el) * a;
+    }
     if (this.aiming) {
       let d = camYaw - this.yaw;
       d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -232,12 +259,18 @@ export class PlayerController {
     );
     const mv = this.cc.computedMovement();
     const wasAir = !this.grounded;
-    const fallSpeed = -this.vy;
     this.grounded = this.cc.computedGrounded();
+    if (!this.grounded) this.fallTop = Math.max(this.fallTop, this.position.y);
+    else if (!wasAir) this.fallTop = this.position.y;
     if (this.grounded && this.vy < 0) {
-      if (wasAir && fallSpeed > 15) {
-        this.startRagdoll(_v.set(this.vel.x, -2, this.vel.z), 0.5);
-        return;
+      if (wasAir) {
+        const h = this.fallTop - (this.position.y + mv.y);
+        this.fallTop = this.position.y + mv.y;
+        if (h > 4) this.onLanded?.(h);
+        if (h > 6) {
+          this.startRagdoll(_v.set(this.vel.x, -2, this.vel.z), 0.6);
+          return;
+        }
       }
       this.vy = -1;
     }
@@ -253,13 +286,16 @@ export class PlayerController {
     });
     this.speedNow = Math.hypot(mv.x, mv.z) / dt;
 
-    if (this.position.y < -2) {
-      this.onFellInSea?.();
+    if (this.position.y < SWIM_FEET + 0.4 && !this.grounded) {
+      this.enterSwim();
       return;
     }
-    // Did a vehicle just hit us?
+    // Did a vehicle just hit us? Under 25 km/h it's a shove, above it a ragdoll (GAME_SPEC §5.1).
     const hit = this.hitTest(_v.set(this.position.x, this.position.y + CENTER_Y, this.position.z));
-    if (hit) {
+    if (hit && hit.length() < 6.9) {
+      this.vel.x += hit.x * 0.9;
+      this.vel.z += hit.z * 0.9;
+    } else if (hit) {
       const sp = hit.length();
       this.startRagdoll(
         _v2
@@ -271,8 +307,71 @@ export class PlayerController {
     }
   }
 
+  private updateStamina(dt: number, drain: number): void {
+    if (drain > 0) {
+      this.stamina = Math.max(0, this.stamina - drain * dt);
+      this.staminaRest = 0;
+    } else {
+      this.staminaRest += dt;
+      if (this.staminaRest > 1.5) this.stamina = Math.min(100, this.stamina + 20 * dt);
+    }
+  }
+
+  private enterSwim(): void {
+    this.state = 'swim';
+    this.vy = 0;
+    this.crouched = false;
+    this.position.y = SWIM_FEET;
+    this.fallTop = SWIM_FEET;
+  }
+
+  /** Surface swimming (GAME_SPEC §5.2): slow, drains stamina, climb out over walls with jump. */
+  private stepSwim(dt: number, move: PlayerMoveInput, camYaw: number): void {
+    const fx = Math.sin(camYaw);
+    const fz = Math.cos(camYaw);
+    const wx = fx * move.y - fz * move.x;
+    const wz = fz * move.y + fx * move.x;
+    const mag = Math.min(1, Math.hypot(wx, wz));
+    const fast = move.sprint && this.stamina > 0;
+    this.updateStamina(dt, fast ? 12 : mag > 0.1 ? 2 : 0);
+    if (this.stamina <= 0) this.onDrowning?.(6);
+    const speed = (fast ? 2.4 : 1.4) * mag;
+    const k = 1 - Math.exp(-4 * dt);
+    this.vel.x += ((mag > 0.01 ? wx / Math.hypot(wx, wz) : 0) * speed - this.vel.x) * k;
+    this.vel.z += ((mag > 0.01 ? wz / Math.hypot(wx, wz) : 0) * speed - this.vel.z) * k;
+    if (mag > 0.05) {
+      let d = Math.atan2(wx, wz) - this.yaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      this.yaw += d * Math.min(1, dt * 6);
+    }
+    if (this.jumpBuffer > 0) {
+      this.jumpBuffer = 0;
+      if (this.tryTraverse(3.8)) return;
+    }
+    const bob = Math.sin(performance.now() / 600) * 0.04;
+    const desired = { x: this.vel.x * dt, y: SWIM_FEET + bob - this.position.y, z: this.vel.z * dt };
+    this.cc.computeColliderMovement(
+      this.collider,
+      desired,
+      this.physics.R.QueryFilterFlags.EXCLUDE_SENSORS,
+      Groups.PLAYER_QUERY,
+    );
+    const mv = this.cc.computedMovement();
+    this.position.x += mv.x;
+    this.position.y += mv.y;
+    this.position.z += mv.z;
+    this.body.setNextKinematicTranslation({
+      x: this.position.x,
+      y: this.position.y + CENTER_Y,
+      z: this.position.z,
+    });
+    this.speedNow = Math.hypot(mv.x, mv.z) / dt;
+    // Reached somewhere shallow enough to stand.
+    if (this.cc.computedGrounded() && this.position.y > SWIM_FEET + 0.5) this.state = 'onFoot';
+  }
+
   /** Vault over waist-high obstacles, climb onto low walls (CLAUDE.md §4.1). */
-  private tryTraverse(): boolean {
+  private tryTraverse(maxClimb = 2.2): boolean {
     const f = _v.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
     const feet = this.position;
     const knee = { x: feet.x, y: feet.y + 0.5, z: feet.z };
@@ -291,7 +390,7 @@ export class PlayerController {
       return top ? top.point.y - feet.y : null;
     };
     const h = probeAt(0.2);
-    if (h === null || h < 0.35 || h > 2.15) return false;
+    if (h === null || h < 0.35 || h > maxClimb) return false;
     const peakY = feet.y + h + 0.35;
     if (h <= 1.3) {
       // Find the far side.
@@ -521,8 +620,12 @@ export class PlayerController {
     const v = b.linvel();
     if (Math.hypot(v.x, v.y, v.z) < 0.7) this.slowTime += dt;
     else this.slowTime = 0;
-    if (t.y < -2) {
-      this.onFellInSea?.();
+    if (t.y < SEA_LEVEL - 0.5) {
+      // Splash down: stop tumbling and swim.
+      this.physics.world.removeRigidBody(b);
+      this.ragdoll = null;
+      this.teleport(new THREE.Vector3(t.x, SWIM_FEET, t.z), this.yaw);
+      this.enterSwim();
       return;
     }
     if ((this.ragdollTime > 1.2 && this.slowTime > 0.6) || this.ragdollTime > 7) {
@@ -561,6 +664,7 @@ export class PlayerController {
     const k = 1 - Math.exp(-dt * 12);
     switch (this.state) {
       case 'onFoot':
+      case 'swim':
       case 'vault':
       case 'climb':
       case 'gettingUp': {
@@ -569,7 +673,10 @@ export class PlayerController {
         d = Math.atan2(Math.sin(d), Math.cos(d));
         this.visualYaw += d * Math.min(1, dt * 14);
         root.quaternion.setFromAxisAngle(UP, this.visualYaw);
-        if (this.state === 'vault') P.vault(this.target, this.traverse?.t ?? 1);
+        if (this.state === 'swim') {
+          this.phase += dt * (2 + this.speedNow * 1.5);
+          P.swim(this.target, this.phase, this.speedNow > 0.3);
+        } else if (this.state === 'vault') P.vault(this.target, this.traverse?.t ?? 1);
         else if (this.state === 'climb') P.climb(this.target, this.traverse?.t ?? 1);
         else if (this.state === 'gettingUp') {
           if (this.getUpTime < 0.5) P.lying(this.target);

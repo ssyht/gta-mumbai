@@ -33,6 +33,90 @@ export class Vehicle {
   readonly seats: SeatRuntime[];
   ai: VehicleDriverAI | null = null;
   hornOn = false;
+  /** Burnt-out shell after an explosion. */
+  exploded = false;
+  explodedAt = 0;
+  private dentStore: Array<{ mesh: THREE.Mesh; orig: Float32Array; mat: THREE.Material }> | null = null;
+
+  private deformables(): THREE.Mesh[] {
+    return this.visual.root.children.filter(
+      (c): c is THREE.Mesh => c instanceof THREE.Mesh && c.userData.deformable === true,
+    );
+  }
+
+  private ensureDentStore(): NonNullable<Vehicle['dentStore']> {
+    if (!this.dentStore) {
+      this.dentStore = this.deformables().map((mesh) => ({
+        mesh,
+        orig: (mesh.geometry.getAttribute('position').array as Float32Array).slice(),
+        mat: mesh.material as THREE.Material,
+      }));
+    }
+    return this.dentStore;
+  }
+
+  /**
+   * Crash deformation (GAME_SPEC §6.2): push body vertices near the impact
+   * point inward along the impact direction, capped so cars crumple, not fold.
+   */
+  dent(dv: number, localDir: THREE.Vector3): void {
+    const store = this.ensureDentStore();
+    const [hx, hy, hz] = this.profile.chassis.halfExtents;
+    const s =
+      Math.max(Math.abs(localDir.x) / hx, Math.abs(localDir.y) / (hy + 0.5), Math.abs(localDir.z) / hz) || 1;
+    const cx = localDir.x / s;
+    const cy = localDir.y / s;
+    const cz = localDir.z / s;
+    const amount = Math.min(0.28, dv * 0.018);
+    const radius = 0.7 + Math.min(0.6, dv * 0.03);
+    for (const { mesh, orig } of store) {
+      const pos = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+      const a = pos.array as Float32Array;
+      for (let i = 0; i < a.length; i += 3) {
+        const d = Math.hypot(a[i]! - cx, a[i + 1]! - cy, a[i + 2]! - cz);
+        if (d > radius) continue;
+        const k = amount * (1 - d / radius);
+        a[i] = a[i]! - localDir.x * k;
+        a[i + 1] = a[i + 1]! - localDir.y * k * 0.5;
+        a[i + 2] = a[i + 2]! - localDir.z * k;
+        // Cap total displacement.
+        const ox = a[i]! - orig[i]!;
+        const oz = a[i + 2]! - orig[i + 2]!;
+        const m = Math.hypot(ox, oz);
+        if (m > 0.45) {
+          a[i] = orig[i]! + (ox / m) * 0.45;
+          a[i + 2] = orig[i + 2]! + (oz / m) * 0.45;
+        }
+      }
+      pos.needsUpdate = true;
+      mesh.geometry.computeVertexNormals();
+    }
+  }
+
+  burn(material: THREE.Material): void {
+    this.exploded = true;
+    this.explodedAt = performance.now();
+    for (const d of this.ensureDentStore()) d.mesh.material = material;
+    for (const w of this.visual.wheelSpinners) w.visible = false;
+    this.ai = null;
+  }
+
+  /** Undo dents, fire damage and engine damage (pool reuse, mod shop). */
+  repair(): void {
+    this.physics.repair();
+    this.exploded = false;
+    if (this.dentStore) {
+      for (const { mesh, orig, mat } of this.dentStore) {
+        const pos = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+        (pos.array as Float32Array).set(orig);
+        pos.needsUpdate = true;
+        mesh.geometry.computeVertexNormals();
+        mesh.material = mat;
+      }
+    }
+    for (const w of this.visual.wheelSpinners) w.visible = true;
+  }
+
   /** False while parked in a traffic pool: no physics, not drawn, ignored by systems. */
   active = true;
 

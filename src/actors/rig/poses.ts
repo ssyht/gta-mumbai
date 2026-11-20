@@ -335,3 +335,20 @@ export function overlayPunch(p: Pose, t01: number): Pose {
   set(p, 'spine', 0.1, -0.35 * k, 0);
   return p;
 }
+
+/** Front crawl at the surface: body pitched forward, alternating arm strokes, flutter kick. */
+export function swim(p: Pose, phase: number, moving: boolean): Pose {
+  p.fill(0);
+  const a = moving ? 1 : 0.35;
+  set(p, 'shoulderL', -1.6 - Math.sin(phase) * 1.4 * a, 0, 0.35);
+  set(p, 'shoulderR', -1.6 + Math.sin(phase) * 1.4 * a, 0, -0.35);
+  set(p, 'elbowL', -0.3 - Math.max(0, Math.cos(phase)) * 0.8 * a);
+  set(p, 'elbowR', -0.3 - Math.max(0, -Math.cos(phase)) * 0.8 * a);
+  set(p, 'hipL', 0.15 + Math.sin(phase * 2) * 0.25 * a);
+  set(p, 'hipR', 0.15 - Math.sin(phase * 2) * 0.25 * a);
+  set(p, 'kneeL', 0.25);
+  set(p, 'kneeR', 0.25);
+  set(p, 'neck', -0.7);
+  body(p, 0.9, 1.25, Math.sin(phase) * 0.12 * a);
+  return p;
+}

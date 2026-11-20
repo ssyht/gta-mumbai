@@ -108,6 +108,7 @@ export class TrafficSystem {
       .add(new THREE.Vector3(dir.z * off, 0, -dir.x * off));
     pos.y = -wheel.position[1] + wheel.radius + 0.12;
     m.v.setActive(true);
+    m.v.repair();
     m.v.physics.reset(pos, Math.atan2(dir.x, dir.z));
     m.v.physics.controls.handbrake = false;
     m.v.snapHistory();
