@@ -46,6 +46,7 @@ export class VehicleManager {
 
   fixedUpdate(dt: number): void {
     for (const v of this.list) {
+      if (!v.active) continue;
       v.fixedUpdate(dt);
       const want = v.ai?.wantHorn ?? false;
       if (v.ai && want !== v.hornOn) this.setHorn(v, want);
@@ -54,6 +55,7 @@ export class VehicleManager {
 
   postStep(): void {
     for (const v of this.list) {
+      if (!v.active) continue;
       v.postStep();
       // Fell into the Arabian Sea or off the world: tow it back.
       if (v.physics.getPosition().y < -3) this.respawn(v);
@@ -65,7 +67,7 @@ export class VehicleManager {
     if (!s) return;
     v.physics.reset(s.pos, s.yaw);
     v.snapHistory();
-    this.bus.emit('ui:toast', { text: `${v.name} towed back to its stand` });
+    if (!v.id.startsWith('tr-')) this.bus.emit('ui:toast', { text: `${v.name} towed back to its stand` });
   }
 
   setHorn(v: Vehicle, on: boolean): void {
@@ -77,6 +79,7 @@ export class VehicleManager {
   syncVisuals(alpha: number, playerVehicleId: string | null): void {
     const night = lightUniforms.street.value;
     for (const v of this.list) {
+      if (!v.active) continue;
       v.syncVisual(alpha);
       const driven = v.id === playerVehicleId || v.driverSeat.occupant !== null;
       v.setLights(night, driven);
@@ -99,7 +102,7 @@ export class VehicleManager {
     let best: Vehicle | null = null;
     let bestD = maxDist;
     for (const v of this.list) {
-      if (v === exclude) continue;
+      if (v === exclude || !v.active) continue;
       const d = v.distanceTo(p);
       if (d < bestD) {
         bestD = d;

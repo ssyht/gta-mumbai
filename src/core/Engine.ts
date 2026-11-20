@@ -11,7 +11,10 @@ import { PostFX } from '../render/PostFX';
 import { SkySystem } from '../render/sky/SkySystem';
 import { TimeOfDay } from '../render/sky/TimeOfDay';
 import { lightUniforms } from '../render/lightUniforms';
-import { buildTestTrack, type TestTrack } from '../world/testtrack/TestTrack';
+import { buildTestTrack, loopCenterline, type TestTrack } from '../world/testtrack/TestTrack';
+import { LaneGraph } from '../world/roads/LaneGraph';
+import { TrafficSystem } from '../ai/TrafficSystem';
+import { PathCrowd } from '../actors/npcs/PathCrowd';
 import { VehicleManager } from '../actors/vehicles/VehicleManager';
 import type { Vehicle } from '../actors/vehicles/Vehicle';
 import { PlayerController } from '../actors/player/PlayerController';
@@ -64,6 +67,9 @@ export class Engine {
   instancer!: RigInstancer;
   crowd!: Crowd;
   bazaar!: BazaarStreet;
+  graph!: LaneGraph;
+  traffic!: TrafficSystem;
+  pathCrowd!: PathCrowd;
   colaba!: ColabaDistrict;
   interaction!: InteractionSystem;
   audio!: AudioSystem;
@@ -139,9 +145,31 @@ export class Engine {
     const colabaData = await loadColabaData();
     const colabaOffset = new THREE.Vector3(941, 0, 867);
     this.colaba = buildColaba(this.scene, this.physics, colabaData, colabaOffset, this.track.lights);
-    buildConnector(this.scene, colabaData, colabaOffset, new THREE.Vector3(110, 0, 152));
+    const connFrom = new THREE.Vector3(111, 0, 150);
+    const connTo = buildConnector(this.scene, colabaData, colabaOffset, connFrom);
+
+    // Lane graph from every drivable road (CLAUDE.md §4.3).
+    this.graph = new LaneGraph();
+    this.graph.addRoad({
+      pts: loopCenterline(2)
+        .map((p) => p.p)
+        .concat([loopCenterline(2)[0]!.p]),
+      width: 12,
+      cls: 'loop',
+    });
+    this.graph.addRoad({
+      pts: [new THREE.Vector3(0, 0, 1), new THREE.Vector3(220, 0, 1)],
+      width: 12,
+      cls: 'bazaar',
+    });
+    this.graph.addRoad({
+      pts: [connFrom, new THREE.Vector3(connFrom.x, 0, Math.max(connFrom.z + 20, connTo.z - 40)), connTo],
+      width: 10,
+      cls: 'connector',
+    });
+    for (const r of this.colaba.roads) this.graph.addRoad(r);
     this.track.lights.build();
-    this.instancer = new RigInstancer(this.scene, 320);
+    this.instancer = new RigInstancer(this.scene, 420);
 
     onStatus('Parking vehicles…');
     this.vehicles = new VehicleManager(this.scene, this.physics, this.bus);
@@ -181,6 +209,28 @@ export class Engine {
     addNpc('bus-p5', 'student', bus, 'door-rear');
 
     this.crowd = new Crowd(this.scene, this.instancer, this.bazaar.crowdArea, 140, this.bazaar.idleSpots);
+    this.pathCrowd = new PathCrowd(this.scene, this.instancer, this.graph, 80);
+    const TRAFFIC: Record<string, number> = { ultra: 30, high: 24, medium: 16, low: 10 };
+    this.traffic = new TrafficSystem(
+      this.scene,
+      this.physics,
+      this.vehicles,
+      this.graph,
+      this.instancer,
+      TRAFFIC[this.settings.quality] ?? 20,
+      (self) => {
+        const out: THREE.Vector3[] = [];
+        const sp = self.root.position;
+        if (this.player.isOnFoot || this.player.state === 'ragdoll') out.push(this.player.position);
+        for (const v of this.vehicles.list) {
+          if (v === self || !v.active) continue;
+          if (Math.abs(v.root.position.x - sp.x) < 30 && Math.abs(v.root.position.z - sp.z) < 30)
+            out.push(v.root.position);
+        }
+        return out;
+      },
+      this.npcs,
+    );
 
     const obstacles = (self: Vehicle) => (): THREE.Vector3[] => {
       const out: THREE.Vector3[] = [];
@@ -411,7 +461,19 @@ export class Engine {
     this.vehicles.syncVisuals(alpha, pv?.id ?? null);
     this.player.frameUpdate(dt, alpha);
     for (const n of this.npcs.values()) n.update(state.paused ? 0 : dt);
-    if (!state.paused) this.crowd.update(dt, this.player.position, this.crowdHazards());
+    if (!state.paused) {
+      const hz = this.crowdHazards();
+      this.crowd.update(dt, this.player.position, hz);
+      this.pathCrowd.update(dt, this.player.position, hz);
+      this.traffic.update(
+        dt,
+        this.player.position,
+        this.cam.camera,
+        this.audio.density,
+        lightUniforms.street.value > 0.5,
+        this.player.seat?.vehicle ?? null,
+      );
+    }
     this.instancer.update();
 
     this.tod.update(dt);
@@ -436,6 +498,7 @@ export class Engine {
 
     this.audio.density = cityDensity(this.tod.clockMinutes);
     this.crowd.setDensity(this.audio.density);
+    this.pathCrowd.density = this.audio.density;
     this.audio.update(
       dt,
       this.cam.camera.position,

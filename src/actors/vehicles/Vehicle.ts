@@ -33,6 +33,14 @@ export class Vehicle {
   readonly seats: SeatRuntime[];
   ai: VehicleDriverAI | null = null;
   hornOn = false;
+  /** False while parked in a traffic pool: no physics, not drawn, ignored by systems. */
+  active = true;
+
+  setActive(on: boolean): void {
+    this.active = on;
+    this.visual.root.visible = on;
+    this.physics.body.setEnabled(on);
+  }
 
   private readonly prevPos = new THREE.Vector3();
   private readonly currPos = new THREE.Vector3();
