@@ -22,7 +22,15 @@ export type Action =
   | 'reset'
   | 'perfHud'
   | 'devPanel'
-  | 'pause';
+  | 'pause'
+  | 'attack'
+  | 'aim'
+  | 'use'
+  | 'weapon1'
+  | 'weapon2'
+  | 'phone'
+  | 'radio'
+  | 'mute';
 
 const KEYMAP: Record<string, Action> = {
   KeyW: 'forward',
@@ -46,6 +54,12 @@ const KEYMAP: Record<string, Action> = {
   Backquote: 'perfHud',
   KeyP: 'devPanel',
   Escape: 'pause',
+  KeyE: 'use',
+  Digit1: 'weapon1',
+  Digit2: 'weapon2',
+  KeyT: 'phone',
+  KeyQ: 'radio',
+  KeyM: 'mute',
 };
 
 /** Standard-mapping gamepad buttons → actions. */
@@ -56,6 +70,11 @@ const PADMAP: Partial<Record<number, Action>> = {
   3: 'interact', // Y
   4: 'sprint', // LB
   9: 'pause', // Start
+  5: 'attack', // RB
+  6: 'aim', // LT (on foot)
+  12: 'phone', // D-pad up
+  13: 'use', // D-pad down
+  14: 'radio', // D-pad left
   8: 'perfHud', // Back
   10: 'horn', // L3
   11: 'camera', // R3
@@ -84,6 +103,27 @@ export class Input {
     rt: 0,
   };
   pointerLocked = false;
+  /** Virtual stick (touch): x = right, y = forward. */
+  private vmove = { x: 0, y: 0 };
+  private readonly vdown = new Set<Action>();
+
+  setVirtualMove(x: number, y: number): void {
+    this.vmove = { x, y };
+  }
+
+  addLook(dx: number, dy: number): void {
+    this.mouseDx += dx;
+    this.mouseDy += dy;
+  }
+
+  pressVirtual(a: Action): void {
+    if (!this.vdown.has(a)) this.pressed.add(a);
+    this.vdown.add(a);
+  }
+
+  releaseVirtual(a: Action): void {
+    this.vdown.delete(a);
+  }
   /** Set false while menus are open so gameplay ignores keys. */
   enabled = true;
 
@@ -94,7 +134,23 @@ export class Input {
     document.addEventListener('mousemove', this.onMouseMove);
     target.addEventListener('wheel', this.onWheel, { passive: true });
     document.addEventListener('pointerlockchange', this.onLockChange);
+    target.addEventListener('mousedown', this.onMouseDown);
+    window.addEventListener('mouseup', this.onMouseUp);
+    target.addEventListener('contextmenu', (e) => e.preventDefault());
   }
+
+  private readonly onMouseDown = (e: MouseEvent): void => {
+    if (!this.pointerLocked) return;
+    const a: Action | null = e.button === 0 ? 'attack' : e.button === 2 ? 'aim' : null;
+    if (!a) return;
+    if (!this.down.has(a)) this.pressed.add(a);
+    this.down.add(a);
+  };
+
+  private readonly onMouseUp = (e: MouseEvent): void => {
+    const a: Action | null = e.button === 0 ? 'attack' : e.button === 2 ? 'aim' : null;
+    if (a) this.down.delete(a);
+  };
 
   dispose(): void {
     window.removeEventListener('keydown', this.onKeyDown);
@@ -168,19 +224,27 @@ export class Input {
 
   isDown(a: Action): boolean {
     if (!this.enabled) return false;
-    return this.down.has(a) || this.padDown.has(a);
+    return this.down.has(a) || this.padDown.has(a) || this.vdown.has(a);
   }
 
   wasPressed(a: Action): boolean {
-    if (!this.enabled && a !== 'pause' && a !== 'perfHud' && a !== 'devPanel') return false;
+    if (
+      !this.enabled &&
+      a !== 'pause' &&
+      a !== 'perfHud' &&
+      a !== 'devPanel' &&
+      a !== 'phone' &&
+      a !== 'mute'
+    )
+      return false;
     return this.pressed.has(a);
   }
 
   /** On-foot move: x = right, y = forward, length ≤ 1. */
   moveVector(): { x: number; y: number } {
     if (!this.enabled) return { x: 0, y: 0 };
-    let x = (this.down.has('right') ? 1 : 0) - (this.down.has('left') ? 1 : 0) + this.pad.lx;
-    let y = (this.down.has('forward') ? 1 : 0) - (this.down.has('back') ? 1 : 0) - this.pad.ly;
+    let x = (this.down.has('right') ? 1 : 0) - (this.down.has('left') ? 1 : 0) + this.pad.lx + this.vmove.x;
+    let y = (this.down.has('forward') ? 1 : 0) - (this.down.has('back') ? 1 : 0) - this.pad.ly + this.vmove.y;
     const len = Math.hypot(x, y);
     if (len > 1) {
       x /= len;
@@ -192,20 +256,20 @@ export class Input {
   /** Accelerator 0..1 (W / RT). */
   throttle(): number {
     if (!this.enabled) return 0;
-    return Math.max(this.down.has('forward') ? 1 : 0, this.pad.rt);
+    return Math.max(this.down.has('forward') ? 1 : 0, this.pad.rt, this.vmove.y);
   }
 
   /** Brake / reverse 0..1 (S / LT). */
   brake(): number {
     if (!this.enabled) return 0;
-    return Math.max(this.down.has('back') ? 1 : 0, this.pad.lt);
+    return Math.max(this.down.has('back') ? 1 : 0, this.pad.lt, -this.vmove.y);
   }
 
   /** Steering -1..1, positive = left (matches the vehicle frame, +X is left). */
   steer(): number {
     if (!this.enabled) return 0;
     const k = (this.down.has('left') ? 1 : 0) - (this.down.has('right') ? 1 : 0);
-    return Math.max(-1, Math.min(1, k - this.pad.lx));
+    return Math.max(-1, Math.min(1, k - this.pad.lx - this.vmove.x));
   }
 
   /** Mouse-look delta in pixels plus right-stick contribution, scaled per frame. */

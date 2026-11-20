@@ -21,6 +21,7 @@ export const CONTROLS: Array<[string, string]> = [
   ['V', 'Chase / first-person · window view'],
   ['R', 'Flip vehicle back over'],
   ['Esc', 'Menu'],
+  ['M', 'Mute / unmute'],
   ['P / `', 'Dev panel / perf HUD'],
 ];
 
@@ -86,6 +87,7 @@ export class PauseMenu {
           <label>Mouse sensitivity <input type="range" id="m-sens" min="0.2" max="3" step="0.05" value="${s.mouseSensitivity}"/></label>
           <label class="row"><input type="checkbox" id="m-invert" ${s.invertY ? 'checked' : ''}/> Invert Y</label>
           <label>Volume <input type="range" id="m-vol" min="0" max="1" step="0.05" value="${s.masterVolume}"/></label>
+          <label class="row"><input type="checkbox" id="m-mute" ${s.muted ? 'checked' : ''}/> Mute all audio (M)</label>
           <ul class="keys">${CONTROLS.map(([k, d]) => `<li><kbd>${k}</kbd>${d}</li>`).join('')}</ul>
         </section>
       </div>`;
@@ -135,6 +137,9 @@ export class PauseMenu {
     $<HTMLInputElement>('m-vol').addEventListener('input', (e) =>
       change({ masterVolume: Number((e.target as HTMLInputElement).value) }),
     );
+    $<HTMLInputElement>('m-mute').addEventListener('change', (e) =>
+      change({ muted: (e.target as HTMLInputElement).checked }),
+    );
     this.reloadNote = $('m-reload');
   }
 
@@ -144,6 +149,13 @@ export class PauseMenu {
     const out = this.el.querySelector('#m-clock-out');
     if (slider) slider.value = String(Math.round(minutes));
     if (out) out.textContent = formatClock(minutes);
+  }
+
+  /** Reflect a mute toggled by the M key. */
+  setMuted(m: boolean): void {
+    this.settings = { ...this.settings, muted: m };
+    const box = this.el.querySelector<HTMLInputElement>('#m-mute');
+    if (box) box.checked = m;
   }
 
   show(v: boolean): void {

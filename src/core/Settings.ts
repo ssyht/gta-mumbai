@@ -17,6 +17,8 @@ export interface SettingsData {
   mouseSensitivity: number;
   invertY: boolean;
   masterVolume: number;
+  /** Mute every game sound (M, or the pause menu). */
+  muted: boolean;
   showPerfHud: boolean;
 }
 
@@ -110,6 +112,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   mouseSensitivity: 1,
   invertY: false,
   masterVolume: 0.8,
+  muted: false,
   showPerfHud: true,
 };
 
@@ -144,6 +147,7 @@ export function sanitizeSettings(raw: unknown): SettingsData {
   if (typeof r.masterVolume === 'number' && Number.isFinite(r.masterVolume))
     s.masterVolume = clamp(r.masterVolume, 0, 1);
   if (typeof r.showPerfHud === 'boolean') s.showPerfHud = r.showPerfHud;
+  if (typeof r.muted === 'boolean') s.muted = r.muted;
   return s;
 }
 
